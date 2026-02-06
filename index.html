@@ -2,78 +2,146 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iventry Mini App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Iventry App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); }
-        .btn-main { background-color: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); }
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #1a1a1a);
+            --text-color: var(--tg-theme-text-color, #ffffff);
+            --hint-color: var(--tg-theme-hint-color, #aaaaaa);
+            --button-color: var(--tg-theme-button-color, #248bcf);
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .active-album {
+            border: 2px solid var(--button-color) !important;
+            background: rgba(36, 139, 207, 0.1);
+        }
+        .tab-bar {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
     </style>
 </head>
-<body class="p-4 flex flex-col h-screen">
+<body class="flex flex-col h-screen">
 
-    <h1 class="text-xl font-bold mb-4 text-center">📸 Мои альбомы</h1>
-
-    <div id="album-list" class="flex-grow overflow-y-auto space-y-2 mb-4">
-        <p class="text-center opacity-50">Загрузка альбомов...</p>
+    <div class="p-4 border-b border-white/10 flex justify-between items-center">
+        <h1 class="text-lg font-bold">Мои Альбомы</h1>
+        <span id="user-name" class="text-xs text-blue-400"></span>
     </div>
 
-    <div class="grid grid-cols-3 gap-2 border-t pt-4">
-        <label class="btn-main p-3 rounded-lg text-center cursor-pointer">
-            <span class="block text-2xl">🖼</span>
-            <span class="text-xs font-medium">Галерея</span>
-            <input type="file" accept="image/*" multiple class="hidden" onchange="uploadFiles(this)">
-        </label>
+    <div id="album-list" class="flex-grow overflow-y-auto p-4 space-y-3">
+        <div class="animate-pulse flex space-x-4">
+            <div class="flex-1 space-y-4 py-1">
+                <div class="h-12 bg-white/10 rounded-xl"></div>
+                <div class="h-12 bg-white/10 rounded-xl"></div>
+            </div>
+        </div>
+    </div>
 
-        <label class="btn-main p-3 rounded-lg text-center cursor-pointer">
-            <span class="block text-2xl">➕</span>
-            <span class="text-xs font-medium">Сделать фото</span>
-            <input type="file" accept="image/*" capture="environment" class="hidden" onchange="uploadFiles(this)">
-        </label>
+    <div class="glass tab-bar p-4 rounded-t-3xl shadow-2xl">
+        <div class="grid grid-cols-3 gap-3">
+            <label class="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition active:scale-95 cursor-pointer">
+                <span class="text-2xl mb-1">🖼</span>
+                <span class="text-[10px] uppercase font-bold opacity-60">Галерея</span>
+                <input type="file" accept="image/*" multiple class="hidden" onchange="handleFiles(this)">
+            </label>
 
-        <button onclick="shareAlbum()" class="btn-main p-3 rounded-lg text-center">
-            <span class="block text-2xl">🔗</span>
-            <span class="text-xs font-medium">Поделиться</span>
-        </button>
+            <label class="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-600 hover:bg-blue-500 transition active:scale-95 cursor-pointer shadow-lg shadow-blue-900/20">
+                <span class="text-2xl mb-1 text-white">📸</span>
+                <span class="text-[10px] uppercase font-bold text-white">Камера</span>
+                <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleFiles(this)">
+            </label>
+
+            <button onclick="shareInvite()" class="flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition active:scale-95">
+                <span class="text-2xl mb-1">🔗</span>
+                <span class="text-[10px] uppercase font-bold opacity-60">Поделиться</span>
+            </button>
+        </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Разворачиваем на весь экран
+        tg.expand();
+        tg.ready();
 
-        // 1. Функция загрузки (заглушка логики отправки на сервер)
-        function uploadFiles(input) {
+        const API_BASE = "https://iventry-iventry.amvera.io"; // ЗАМЕНИ НА СВОЙ URL
+        let selectedAlbumCode = null;
+        const userId = tg.initDataUnsafe?.user?.id || 123; // 123 для тестов в браузере
+        
+        document.getElementById('user-name').innerText = tg.initDataUnsafe?.user?.first_name || "Guest";
+
+        async function loadAlbums() {
+            const list = document.getElementById('album-list');
+            try {
+                const res = await fetch(`${API_BASE}/api/albums/${userId}`);
+                const albums = await res.json();
+                
+                if (!albums || albums.length === 0) {
+                    list.innerHTML = `<div class="text-center opacity-40 mt-10">У вас пока нет альбомов.<br>Создайте один в боте!</div>`;
+                    return;
+                }
+
+                list.innerHTML = albums.map(a => `
+                    <div id="alb-${a.code}" onclick="selectAlbum('${a.code}')" 
+                         class="glass p-4 rounded-2xl flex justify-between items-center transition active:scale-[0.98]">
+                        <div>
+                            <div class="font-bold">${a.name}</div>
+                            <div class="text-[10px] opacity-40 font-mono italic">ID: ${a.code}</div>
+                        </div>
+                        <div class="text-blue-500 opacity-0 check-mark">✓</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                list.innerHTML = `<div class="text-red-400 text-center">Ошибка загрузки. Проверь API.</div>`;
+            }
+        }
+
+        function selectAlbum(code) {
+            selectedAlbumCode = code;
+            document.querySelectorAll('#album-list > div').forEach(el => {
+                el.classList.remove('active-album');
+                el.querySelector('.check-mark').style.opacity = '0';
+            });
+            const active = document.getElementById(`alb-${code}`);
+            active.classList.add('active-album');
+            active.querySelector('.check-mark').style.opacity = '1';
+            tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function handleFiles(input) {
+            if (!selectedAlbumCode) {
+                tg.showAlert("Сначала выбери альбом из списка выше!");
+                return;
+            }
             const files = input.files;
             if (files.length > 0) {
-                tg.showConfirm(`Загрузить ${files.length} фото?`, (ok) => {
+                tg.showConfirm(`Загрузить ${files.length} фото в альбом?`, (ok) => {
                     if (ok) {
-                        tg.showAlert("Фото успешно отправлены в базу!");
-                        // Здесь будет fetch() к твоему API на Amvera
+                        // Тут будет логика отправки файлов на твой API
+                        tg.showAlert("Фото отправлены! (Здесь будет fetch)");
                     }
                 });
             }
         }
 
-        // 2. Поделиться альбомом
-        function shareAlbum() {
-            const albumId = "123"; // В реальности берем активный ID
-            const shareUrl = `https://t.me/8589049869?start=alb_${albumId}`;
-            tg.switchInlineQuery(shareUrl, ["users", "groups"]);
-        }
-
-        // 3. Имитация получения альбомов (нужен API!)
-        function loadAlbums() {
-            const list = document.getElementById('album-list');
-            // В будущем тут fetch('/get_albums?user_id=' + tg.initDataUnsafe.user.id)
-            const fakeAlbums = [{id: 1, name: "Свадьба"}, {id: 2, name: "Днюха"}];
-            
-            list.innerHTML = fakeAlbums.map(a => `
-                <div class="p-3 bg-white/10 rounded-xl border border-white/20 flex justify-between items-center" onclick="selectAlbum(${a.id})">
-                    <span>${a.name}</span>
-                    <span class="text-xs opacity-50 font-mono">ID: ${a.id}</span>
-                </div>
-            `).join('');
+        function shareInvite() {
+            if (!selectedAlbumCode) {
+                tg.showAlert("Сначала выбери альбом, которым хочешь поделиться!");
+                return;
+            }
+            const link = `https://t.me/8589049869?start=alb_${selectedAlbumCode}`;
+            tg.switchInlineQuery(link);
         }
 
         loadAlbums();
