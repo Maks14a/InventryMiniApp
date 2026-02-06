@@ -1,51 +1,80 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: var(--tg-theme-bg-color, #1a1a1a); color: var(--tg-theme-text-color, #fff); }
+        body { background: var(--tg-theme-bg-color, #1a1a1a); color: var(--tg-theme-text-color, #fff); font-family: sans-serif; }
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .photo-grid img { transition: transform 0.2s; }
+        .photo-grid img:active { transform: scale(0.95); }
+        /* Стили для полноэкранного режима */
+        #full-screen-modal { display: none; position: fixed; inset: 0; background: black; z-index: 100; justify-content: center; align-items: center; }
+        #full-screen-modal img { max-width: 100%; max-height: 100%; object-fit: contain; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
+
     <div id="list-screen" class="p-4 flex-grow overflow-y-auto">
-        <h1 class="text-xl font-bold mb-4">Мои Альбомы</h1>
-        <div id="albums" class="space-y-2"></div>
+        <h1 class="text-2xl font-bold mb-6">Мои Альбомы</h1>
+        <div id="albums" class="grid gap-3"></div>
     </div>
+
     <div id="album-screen" class="hidden flex flex-col h-full">
-        <div class="p-4 border-b border-white/10 flex items-center">
-            <button onclick="showList()" class="text-blue-400 mr-4">←</button>
-            <h2 id="alb-title" class="font-bold"></h2>
+        <div class="p-4 border-b border-white/10 flex items-center justify-between">
+            <div class="flex items-center">
+                <button onclick="showList()" class="text-blue-400 text-2xl mr-4">✕</button>
+                <h2 id="alb-title" class="font-bold text-lg truncate w-40"></h2>
+            </div>
+            <button onclick="share()" class="bg-blue-600 px-4 py-1 rounded-full text-sm font-bold">Поделиться</button>
         </div>
-        <div id="photos" class="flex-grow overflow-y-auto p-2 grid grid-cols-3 gap-1"></div>
-        <div class="glass p-6 rounded-t-3xl grid grid-cols-3 gap-4">
-            <label class="flex flex-col items-center">
-                <span>🖼</span><span class="text-[10px]">Галерея</span>
+
+        <div id="photos" class="flex-grow overflow-y-auto p-2 grid grid-cols-3 gap-2 photo-grid">
+            </div>
+
+        <div class="glass p-6 rounded-t-3xl grid grid-cols-3 gap-4 pb-10">
+            <label class="flex flex-col items-center gap-1 active:opacity-50">
+                <div class="bg-white/10 p-3 rounded-full text-2xl">🖼</div>
+                <span class="text-[10px] uppercase font-bold opacity-60">Галерея</span>
                 <input type="file" accept="image/*" multiple class="hidden" onchange="up(this)">
             </label>
-            <label class="flex flex-col items-center bg-blue-600 rounded-xl p-2">
-                <span>📸</span><span class="text-[10px]">Камера</span>
+            <label class="flex flex-col items-center gap-1 active:opacity-50">
+                <div class="bg-blue-600 p-3 rounded-full text-2xl shadow-lg shadow-blue-500/30">📸</div>
+                <span class="text-[10px] uppercase font-bold">Камера</span>
                 <input type="file" accept="image/*" capture="environment" class="hidden" onchange="up(this)">
             </label>
-            <button onclick="share()"><span>🔗</span><span class="text-[10px]">Ссылка</span></button>
+            <button onclick="share()" class="flex flex-col items-center gap-1 active:opacity-50">
+                <div class="bg-white/10 p-3 rounded-full text-2xl">🔗</div>
+                <span class="text-[10px] uppercase font-bold opacity-60">Ссылка</span>
+            </button>
         </div>
+    </div>
+
+    <div id="full-screen-modal" onclick="closeFull()">
+        <img id="full-img" src="">
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        const API = "http://localhost:8080";
+        const API = "http://localhost:8080"; // Замени на домен Amvera, когда зальешь туда
         const uid = tg.initDataUnsafe?.user?.id || 123;
         let curCode = null;
 
+        tg.expand();
+
         async function load() {
-            const r = await fetch(`${API}/api/albums/${uid}`);
-            const d = await r.json();
-            document.getElementById('albums').innerHTML = d.map(a => `
-                <div onclick="openAlb('${a.code}','${a.name}')" class="glass p-4 rounded-xl">${a.name}</div>
-            `).join('');
+            try {
+                const r = await fetch(`${API}/api/albums/${uid}`);
+                const d = await r.json();
+                document.getElementById('albums').innerHTML = d.map(a => `
+                    <div onclick="openAlb('${a.code}','${a.name}')" class="glass p-5 rounded-2xl flex justify-between items-center active:scale-[0.98] transition-all">
+                        <span class="font-medium text-lg">${a.name}</span>
+                        <span class="text-blue-400 font-bold">→</span>
+                    </div>
+                `).join('');
+            } catch (e) { console.error("Ошибка загрузки списка"); }
         }
 
         async function openAlb(code, name) {
@@ -53,9 +82,27 @@
             document.getElementById('alb-title').innerText = name;
             document.getElementById('list-screen').classList.add('hidden');
             document.getElementById('album-screen').classList.remove('hidden');
+            
             const r = await fetch(`${API}/api/photos/${code}`);
             const ph = await r.json();
-            document.getElementById('photos').innerHTML = ph.map(u => `<img src="${u}" class="w-full h-24 object-cover rounded">`).join('');
+            const container = document.getElementById('photos');
+            
+            if (ph.length === 0) {
+                container.innerHTML = `<div class="col-span-3 text-center opacity-30 mt-20">Тут пока пусто...</div>`;
+            } else {
+                container.innerHTML = ph.map(u => `
+                    <img src="${u}" onclick="viewFull('${u}')" class="w-full h-32 object-cover rounded-lg shadow-md">
+                `).join('');
+            }
+        }
+
+        function viewFull(url) {
+            document.getElementById('full-img').src = url;
+            document.getElementById('full-screen-modal').style.display = 'flex';
+        }
+
+        function closeFull() {
+            document.getElementById('full-screen-modal').style.display = 'none';
         }
 
         function showList() {
@@ -65,20 +112,37 @@
 
         async function up(input) {
             if (!input.files[0]) return;
+            tg.MainButton.setText("ЗАГРУЗКА...").show();
+            
             const fd = new FormData();
             fd.append('file', input.files[0]);
             fd.append('album_code', curCode);
             fd.append('user_id', uid);
-            await fetch(`${API}/api/upload`, { method:'POST', body:fd });
-            openAlb(curCode, document.getElementById('alb-title').innerText);
+
+            try {
+                await fetch(`${API}/api/upload`, { method:'POST', body:fd });
+                openAlb(curCode, document.getElementById('alb-title').innerText);
+            } catch (e) {
+                tg.showAlert("Ошибка при загрузке!");
+            }
+            tg.MainButton.hide();
         }
 
+        // ИСПРАВЛЕННАЯ ССЫЛКА
         function share() {
-            tg.switchInlineQuery(`https://t.me/8589049869?start=alb_${curCode}`);
+            const botLink = `https://t.me/8589049869?start=alb_${curCode}`;
+            
+            // Открываем стандартное окно ТГ для выбора чата
+            tg.switchInlineQuery(botLink);
+            
+            // Дополнительно: копируем в буфер, если браузер позволит
+            navigator.clipboard.writeText(botLink).then(() => {
+                tg.showScanQrPopup({text: "Ссылка скопирована и готова к отправке!"});
+                setTimeout(() => tg.closeScanQrPopup(), 2000);
+            }).catch(() => {});
         }
 
         load();
-        tg.expand();
     </script>
 </body>
 </html>
