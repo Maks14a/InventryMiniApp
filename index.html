@@ -1,104 +1,99 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Iventry</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{
-      --glass: rgba(255,255,255,0.08);
-      --glass2: rgba(0,0,0,0.25);
-    }
-    body{
-      margin:0;
-      background: #0b0f16;
-      color:#fff;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
-      overflow-x:hidden;
-    }
-    .glass{ background: var(--glass); backdrop-filter: blur(10px); }
-    .shadow-soft{ box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
-    .btn{ transition: transform .08s ease, opacity .2s; }
-    .btn:active{ transform: scale(.98); }
-    .modal{ position:fixed; inset:0; display:none; background: rgba(0,0,0,0.55); z-index:50; }
-    .modal.show{ display:flex; }
-    .safe-btm{ padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
-    .safe-top{ padding-top: calc(12px + env(safe-area-inset-top)); }
+    body{margin:0;background:#0b0b0f;color:#fff}
+    .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(16px)}
+    .btn{border:1px solid rgba(255,255,255,.12)}
+    .shadow-soft{box-shadow:0 10px 35px rgba(0,0,0,.35)}
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999}
+    .modal.show{display:flex}
   </style>
 </head>
-<body class="min-h-screen">
 
-  <!-- TOP BAR -->
-  <div class="safe-top sticky top-0 z-40 px-4 pt-3 pb-3">
-    <div class="glass shadow-soft rounded-3xl px-4 py-3 flex items-center justify-between">
-      <button id="backBtn" class="btn glass px-3 py-2 rounded-2xl">←</button>
-      <div id="topTitle" class="font-semibold text-sm opacity-90 truncate max-w-[55%]">Iventry</div>
-      <div class="flex items-center gap-2">
-        <button id="shareBtn" class="btn glass px-3 py-2 rounded-2xl">↗</button>
-        <button id="topMenuBtn" class="btn glass px-3 py-2 rounded-2xl">⋯</button>
-      </div>
-    </div>
-  </div>
+<body class="h-screen overflow-hidden">
+  <div class="h-full flex flex-col">
 
-  <!-- ALBUMS LIST -->
-  <div id="albumsView" class="px-4 pb-24">
-    <div class="mt-2 opacity-70 text-sm">Твои альбомы</div>
-    <div id="albumsGrid" class="mt-3 grid gap-3"></div>
-
-    <div class="mt-6 opacity-70 text-xs">
-      Если ссылка не работает — открой бота и нажми «Старт».
-    </div>
-  </div>
-
-  <!-- ALBUM VIEW -->
-  <div id="albumView" class="hidden px-4 pb-32">
-    <div id="albumHint" class="text-xs opacity-70 mt-2"></div>
-
-    <div id="photosGrid" class="mt-3 grid grid-cols-2 gap-2"></div>
-
-    <div class="mt-5 grid gap-2">
-      <button id="openCamera" class="btn glass w-full py-4 rounded-3xl text-lg font-semibold">
-        📷 Добавить фото
-      </button>
-      <button id="manageBtn" class="btn glass w-full py-3 rounded-3xl opacity-90">⚙ Управление</button>
-    </div>
-  </div>
-
-  <!-- FULLSCREEN PHOTO -->
-  <div id="fullModal" class="modal items-center justify-center p-4">
-    <div class="glass shadow-soft rounded-3xl p-3 max-w-[92vw]">
-      <img id="fullImg" src="" class="rounded-2xl max-h-[76vh] max-w-[85vw] object-contain" />
-      <div class="mt-3 flex items-center justify-between gap-2">
-        <div id="fullMeta" class="text-xs opacity-70 truncate"></div>
-        <button id="fullClose" class="btn glass px-4 py-2 rounded-2xl">Закрыть</button>
-      </div>
-      <button id="fullDelete" class="mt-3 w-full btn glass py-3 rounded-2xl text-red-200 hidden">
-        🗑 Удалить фото
-      </button>
-    </div>
-  </div>
-
-  <!-- CAMERA MODAL -->
-  <div id="cameraModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
+    <div class="px-4 pt-4 pb-3">
       <div class="flex items-center justify-between">
-        <div class="font-bold">Добавить фото</div>
-        <button id="camClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center shadow-soft">📸</div>
+          <div>
+            <div class="text-sm opacity-70 leading-none">Iventry</div>
+            <div id="topTitle" class="font-bold text-lg leading-tight">Альбомы</div>
+          </div>
+        </div>
+        <button id="topMenuBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Albums screen -->
+    <div id="screenAlbums" class="flex-1 overflow-y-auto px-4 pb-24">
+      <div class="mt-2 text-sm opacity-70">Твои альбомы и расшаренные</div>
+      <div id="albumsList" class="mt-4 grid gap-3"></div>
+    </div>
+
+    <!-- Album screen -->
+    <div id="screenAlbum" class="hidden flex-1 flex flex-col overflow-hidden">
+      <div class="px-4 pb-3 flex items-center justify-between">
+        <button id="backBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">← Назад</button>
+        <div id="permBadge" class="text-xs px-3 py-2 rounded-2xl bg-white/10"></div>
+        <div class="w-24"></div>
       </div>
 
-      <div class="mt-3 grid gap-3">
-        <video id="camVideo" class="w-full rounded-2xl bg-black" autoplay playsinline></video>
+      <div id="photoGrid" class="flex-1 overflow-y-auto px-2 pb-2 grid grid-cols-3 gap-2"></div>
+
+      <!-- bottom bar -->
+      <div class="glass p-4 rounded-t-3xl shadow-soft">
+        <div class="flex items-center justify-between gap-3">
+          <button id="galleryBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">🖼 Галерея</button>
+          <button id="cameraBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">📷 Камера</button>
+          <button id="shareBtnBottom" class="btn glass flex-1 py-3 rounded-2xl text-sm text-blue-200">📤 Поделиться</button>
+        </div>
+        <div id="uploadHint" class="mt-2 text-xs opacity-70"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Full image -->
+  <div id="fullModal" class="modal items-center justify-center p-4">
+    <div class="w-full max-w-3xl">
+      <div class="flex justify-end mb-2">
+        <button id="fullClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+      </div>
+      <img id="fullImg" class="w-full max-h-[80vh] object-contain rounded-2xl" src="">
+    </div>
+  </div>
+
+  <!-- Camera modal -->
+  <div id="cameraModal" class="modal items-center justify-center p-4">
+    <div class="w-full max-w-xl glass rounded-3xl p-4 shadow-soft">
+      <div class="flex items-center justify-between">
+        <div class="font-bold">Камера</div>
+        <div class="flex items-center gap-2">
+          <button id="camFlip" class="btn glass px-3 py-2 rounded-2xl">🔄</button>
+          <button id="cameraClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+        </div>
+      </div>
+
+      <div class="mt-3 rounded-2xl overflow-hidden bg-black/60">
+        <video id="camVideo" playsinline autoplay muted class="w-full h-[52vh] object-cover"></video>
       </div>
 
       <div class="mt-3 flex gap-2">
-        <button id="camShot" class="btn glass flex-1 py-3 rounded-2xl">Сделать фото</button>
-        <button id="camFallback" class="btn glass px-4 py-3 rounded-2xl">Фолбэк</button>
+        <button id="camShot" class="btn glass flex-1 py-3 rounded-2xl">📸 Снять</button>
+        <button id="camFallback" class="btn glass px-4 py-3 rounded-2xl">🗂 Фолбэк</button>
       </div>
+
       <canvas id="camCanvas" class="hidden"></canvas>
-      <div class="mt-2 text-xs opacity-70">Если камера не открылась — нажми «Фолбэк» (тогда будет системный выбор файла).</div>
+      <div class="mt-2 text-xs opacity-70">
+        Если видишь чёрный экран — нажми 🔄 (смена камеры) или «Фолбэк» (системный выбор файла).
+      </div>
     </div>
   </div>
 
@@ -106,12 +101,12 @@
   <div id="manageModal" class="modal items-end justify-center p-0">
     <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
       <div class="flex items-center justify-between">
-        <div class="font-bold">Управление</div>
+        <div class="font-bold">⚙️ Настройки альбома</div>
         <button id="manageClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
       </div>
 
       <div class="mt-3 grid gap-2">
-        <button id="renameAlbumBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">✏️ Переименовать альбом</button>
+        <button id="renameBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">✏️ Переименовать</button>
         <button id="membersBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">👥 Участники</button>
         <button id="deleteAlbumBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4 text-red-300">🗑 Удалить альбом</button>
       </div>
@@ -126,7 +121,7 @@
   <div id="membersModal" class="modal items-end justify-center p-0">
     <div class="w-full rounded-t-3xl glass p-4 shadow-soft max-h-[80vh] overflow-y-auto">
       <div class="flex items-center justify-between">
-        <div class="font-bold">Участники</div>
+        <div class="font-bold">👥 Участники</div>
         <button id="membersClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
       </div>
 
@@ -139,7 +134,7 @@
           <input id="memberInput" class="w-full px-3 py-3 rounded-2xl bg-black/40 outline-none btn"
                  placeholder="Telegram ID (195...) или @username" />
 
-          <button id="inviteBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">➕ Пригласить (выбрать чат в Telegram)</button>
+          <button id="inviteBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">📤 Создать инвайт и отправить</button>
         </div>
 
         <div class="mt-2 flex gap-2 text-xs">
@@ -154,7 +149,10 @@
         </div>
 
         <button id="memberAddBtn" class="mt-2 btn glass w-full py-3 rounded-2xl">✅ Добавить / Обновить</button>
-        <div class="mt-2 text-xs opacity-70">Самый надёжный способ — «Пригласить». @username может не резолвиться у Telegram.</div>
+
+        <div class="mt-2 text-xs opacity-70">
+          ⚠️ @username может не резолвиться, если человек не открыл бота. Самый надёжный способ — инвайт-ссылка.
+        </div>
       </div>
 
       <div class="mt-3 text-sm font-semibold">Список</div>
@@ -172,15 +170,12 @@
     const API = "https://bot13-iventry.amvera.io";
     const userId = tg.initDataUnsafe?.user?.id || 0;
 
-    if(!userId){
-      toast("Открой мини-приложение внутри Telegram (иначе нет Telegram ID)");
-    }
-
     let currentAlbumCode = "";
     let currentAlbumName = "";
     let currentPerms = { is_owner:false, can_upload:false, can_delete:false };
 
     let camStream = null;
+    let cameraFacing = "environment"; // environment | user
 
     const $ = (id) => document.getElementById(id);
 
@@ -188,194 +183,329 @@
       const t = $("toast");
       t.textContent = msg;
       t.classList.remove("hidden");
-      setTimeout(()=>t.classList.add("hidden"), 2200);
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(()=> t.classList.add("hidden"), 2300);
     }
 
     function escapeHtml(s){
-      return String(s||"")
-        .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+      return (s||"").replace(/[&<>"']/g, m => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      })[m]);
     }
 
-    async function createInviteLink(canUpload, canDelete){
-      const fd = new FormData();
-      fd.append("album_code", currentAlbumCode);
-      fd.append("user_id", userId);
-      fd.append("can_upload", canUpload ? "true" : "false");
-      fd.append("can_delete", canDelete ? "true" : "false");
-
-      const resp = await fetch(`${API}/api/invite/create`, { method:"POST", body: fd });
-      if(!resp.ok){
-        const t = await resp.text();
-        throw new Error((t || "invite error").slice(0,140));
-      }
-      const j = await resp.json();
-      if(!j.link) throw new Error("invite link missing");
-      return j.link;
+    // ======= Screens =======
+    function showAlbumsScreen(){
+      $("screenAlbums").classList.remove("hidden");
+      $("screenAlbum").classList.add("hidden");
+      $("topTitle").textContent = "Альбомы";
+      $("topMenuBtn").onclick = () => toast("Открой альбом, чтобы управлять 🙂");
     }
 
-    $("topMenuBtn").onclick = () => toast("Открой альбом, чтобы управлять 🙂");
-    $("backBtn").onclick = () => closeAlbum();
-    $("shareBtn").onclick = () => shareAlbum();
-    $("manageBtn").onclick = () => openManage();
+    function showAlbumScreen(){
+      $("screenAlbums").classList.add("hidden");
+      $("screenAlbum").classList.remove("hidden");
+      $("topTitle").textContent = currentAlbumName || "Альбом";
+      $("topMenuBtn").onclick = () => openManage();
+    }
 
-    $("manageClose").onclick = () => $("manageModal").classList.remove("show");
-    $("membersClose").onclick = () => $("membersModal").classList.remove("show");
-    $("membersBtn").onclick = () => openMembers();
-    $("deleteAlbumBtn").onclick = () => deleteAlbum();
-    $("renameAlbumBtn").onclick = () => renameAlbum();
-
-    $("fullClose").onclick = () => $("fullModal").classList.remove("show");
-    $("fullModal").onclick = (e) => { if(e.target.id==="fullModal") $("fullModal").classList.remove("show"); };
-
-    // camera modal
-    $("openCamera").onclick = () => openCameraModal();
-    $("camClose").onclick = () => closeCameraModal();
-    $("camFallback").onclick = () => openFilePickerFallback();
-    $("camShot").onclick = () => shotFromCamera();
-
-    // ========== INIT ==========
-    (async function init(){
-      await loadAlbums();
-    })();
-
+    // ======= Data =======
     async function loadAlbums(){
       if(!userId){
-        toast("Нет Telegram ID. Открой через Telegram.");
+        toast("Не удалось получить Telegram user_id");
         return;
       }
+      const r = await fetch(`${API}/api/albums/${userId}`);
+      const d = await r.json();
 
-      const r = await fetch(`${API}/api/albums?user_id=${encodeURIComponent(userId)}`);
-      if(!r.ok){
-        const t = await r.text();
-        toast("Ошибка загрузки: " + t.slice(0,70));
-        return;
-      }
-      const j = await r.json();
-      const items = (j.items || []);
-      $("albumsGrid").innerHTML = items.map(a => `
-        <button class="btn glass rounded-3xl p-4 text-left shadow-soft"
-                onclick="openAlbum('${a.code}','${escapeHtml(a.name||'Альбом')}')">
-          <div class="text-lg font-semibold">${escapeHtml(a.name||"Альбом")}</div>
-          <div class="text-xs opacity-70 mt-1">
-            ${a.is_owner ? "Ты владелец" : "Ты участник"}
+      $("albumsList").innerHTML = (d || []).map(a => `
+        <div class="glass rounded-2xl p-4 btn flex items-center justify-between"
+             onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
+          <div>
+            <div class="font-semibold">${escapeHtml(a.name)}</div>
+            <div class="text-xs opacity-70">${a.code}</div>
           </div>
-        </button>
-      `).join("") || `<div class="text-sm opacity-70 mt-3">Пока нет альбомов. Создай через бота 🙂</div>`;
+          <div class="text-xl">→</div>
+        </div>
+      `).join("");
     }
 
-    function openAlbum(code, name){
+    window.openAlbum = async function(code, name){
       currentAlbumCode = code;
       currentAlbumName = name;
-      $("topTitle").textContent = name;
-      $("albumsView").classList.add("hidden");
-      $("albumView").classList.remove("hidden");
-      $("topMenuBtn").onclick = () => openManage();
-      loadPhotos();
-    }
 
-    function closeAlbum(){
-      currentAlbumCode = "";
-      currentAlbumName = "";
-      currentPerms = { is_owner:false, can_upload:false, can_delete:false };
-      $("topTitle").textContent = "Iventry";
-      $("albumView").classList.add("hidden");
-      $("albumsView").classList.remove("hidden");
-      $("topMenuBtn").onclick = () => toast("Открой альбом, чтобы управлять 🙂");
-      loadAlbums();
+      showAlbumScreen();
+      await loadPhotos();
     }
 
     async function loadPhotos(){
-      const r = await fetch(`${API}/api/photos/${currentAlbumCode}?user_id=${encodeURIComponent(userId)}`);
+      $("photoGrid").innerHTML = "";
+      $("permBadge").textContent = "Загрузка…";
+      $("uploadHint").textContent = "";
+
+      const r = await fetch(`${API}/api/photos/${currentAlbumCode}?user_id=${userId}`);
+      const d = await r.json();
+
       if(!r.ok){
-        const t = await r.text();
-        toast("Ошибка фото: " + t.slice(0,70));
+        toast(d?.detail || "Ошибка загрузки");
+        currentPerms = {is_owner:false, can_upload:false, can_delete:false};
+        $("permBadge").textContent = "Нет доступа";
         return;
       }
-      const j = await r.json();
-      currentPerms = j.perms || currentPerms;
 
-      $("albumHint").textContent = currentPerms.is_owner
-        ? "Ты владелец. У тебя полный доступ."
-        : (currentPerms.can_upload ? "Ты участник. Можешь загружать." : "Ты участник. Только просмотр.");
+      currentPerms = d.perms || {is_owner:false, can_upload:false, can_delete:false};
+      const badge = currentPerms.is_owner
+        ? "👑 Владелец"
+        : (currentPerms.can_upload ? "✅ Участник (загрузка)" : "👀 Просмотр");
+      $("permBadge").textContent = badge;
 
-      const items = (j.items || []);
-      $("photosGrid").innerHTML = items.map(p => `
-        <button class="btn rounded-3xl overflow-hidden bg-white/5 aspect-square"
-                onclick="openFull('${p.url}', ${p.uploaded_by || 0})">
-          <img src="${p.url}" class="w-full h-full object-cover" loading="lazy" />
-        </button>
-      `).join("") || `<div class="text-sm opacity-70 mt-3 col-span-2">Пока нет фото</div>`;
+      $("uploadHint").textContent = currentPerms.can_upload
+        ? "Загрузка: «Галерея» или «Камера». Удаление: владелец/удаление/автор фото."
+        : "У тебя нет прав на загрузку. Попроси владельца выдать доступ.";
 
-      // upload button visibility
-      $("openCamera").classList.toggle("hidden", !currentPerms.can_upload && !currentPerms.is_owner);
+      const items = d.items || [];
+      $("photoGrid").innerHTML = items.map(p => `
+        <div class="relative group">
+          <img src="${p.url}" class="w-full aspect-square object-cover rounded-xl btn"
+               onclick="openFull('${p.url}')">
+          ${renderDeleteBtn(p.url, p.uploaded_by)}
+        </div>
+      `).join("");
     }
 
-    function openFull(url, uploadedBy){
+    function renderDeleteBtn(url, uploadedBy){
+      const can = currentPerms.is_owner || currentPerms.can_delete || (uploadedBy && uploadedBy === userId);
+      if(!can) return "";
+      return `
+        <button class="absolute top-1 right-1 bg-black/55 px-2 py-1 rounded-xl text-xs btn"
+                onclick="event.stopPropagation(); deletePhoto('${url}')">🗑</button>
+      `;
+    }
+
+    window.openFull = function(url){
       $("fullImg").src = url;
-      $("fullMeta").textContent = uploadedBy ? ("Загрузил: " + uploadedBy) : "";
-
-      // delete allowed:
-      // owner OR can_delete OR uploaded_by == user
-      const canDel = currentPerms.is_owner || currentPerms.can_delete || (uploadedBy && Number(uploadedBy) === Number(userId));
-      $("fullDelete").classList.toggle("hidden", !canDel);
-
-      $("fullDelete").onclick = () => deletePhoto(url);
       $("fullModal").classList.add("show");
     }
 
-    async function deletePhoto(url){
+    $("fullClose").onclick = () => $("fullModal").classList.remove("show");
+    $("fullModal").onclick = (e) => { if(e.target === $("fullModal")) $("fullModal").classList.remove("show"); };
+
+    // ======= Upload (gallery) =======
+    function galleryPicker(){
+      const inp = document.createElement("input");
+      inp.type = "file";
+      inp.accept = "image/*";
+      inp.onchange = async () => {
+        if(!inp.files || !inp.files[0]) return;
+        await uploadFile(inp.files[0]);
+      };
+      inp.click();
+    }
+
+    async function uploadFile(file){
+      if(!currentPerms.can_upload){
+        toast("Нет прав на загрузку");
+        return;
+      }
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("file", file);
+
+      const r = await fetch(`${API}/api/upload`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Ошибка загрузки");
+        return;
+      }
+      toast("✅ Загружено");
+      await loadPhotos();
+    }
+
+    // ======= Camera =======
+    async function startCamera(){
+      $("cameraModal").classList.add("show");
+
+      if(camStream){
+        camStream.getTracks().forEach(t => t.stop());
+        camStream = null;
+      }
+
+      try{
+        if(!navigator.mediaDevices?.getUserMedia){
+          throw new Error("getUserMedia not supported");
+        }
+
+        const v = $("camVideo");
+        v.muted = true;
+        v.setAttribute("muted", "");
+        v.setAttribute("playsinline", "");
+        v.autoplay = true;
+
+        const constraintsA = { video: { facingMode: cameraFacing }, audio: false };
+        const constraintsB = { video: { facingMode: { ideal: cameraFacing } }, audio: false };
+
+        try{
+          camStream = await navigator.mediaDevices.getUserMedia(constraintsA);
+        }catch(_){
+          camStream = await navigator.mediaDevices.getUserMedia(constraintsB);
+        }
+
+        v.srcObject = camStream;
+
+        await new Promise((resolve) => {
+          const done = () => resolve();
+          v.onloadedmetadata = done;
+          setTimeout(done, 500);
+        });
+
+        v.style.transform = (cameraFacing === "user") ? "scaleX(-1)" : "none";
+
+        await v.play();
+        toast("Камера готова");
+      }catch(e){
+        console.log(e);
+        toast("Камера недоступна — жми «Фолбэк»");
+      }
+    }
+
+    function stopCamera(){
+      $("cameraModal").classList.remove("show");
+      const v = $("camVideo");
+      try{ v.pause(); }catch(_){}
+      v.srcObject = null;
+      if(camStream){
+        camStream.getTracks().forEach(t => t.stop());
+        camStream = null;
+      }
+    }
+
+    async function flipCamera(){
+      cameraFacing = (cameraFacing === "environment") ? "user" : "environment";
+      toast(cameraFacing === "user" ? "Фронтальная камера" : "Задняя камера");
+      await startCamera();
+    }
+
+    async function takeShot(){
+      try{
+        const v = $("camVideo");
+        if(!v || !v.videoWidth){
+          toast("Нет видео — жми «Фолбэк»");
+          return;
+        }
+
+        const canvas = $("camCanvas");
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        const ctx = canvas.getContext("2d");
+
+        if(cameraFacing === "user"){
+          ctx.save();
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+        }else{
+          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        }
+
+        const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.92));
+        if(!blob){
+          toast("Не удалось сделать фото");
+          return;
+        }
+        await uploadFile(new File([blob], "camera.jpg", { type:"image/jpeg" }));
+      }catch(e){
+        console.log(e);
+        toast("Ошибка камеры — жми «Фолбэк»");
+      }
+    }
+
+    function cameraFallback(){
+      stopCamera();
+      galleryPicker();
+    }
+
+    // ======= Delete photo =======
+    window.deletePhoto = async function(url){
       const fd = new FormData();
       fd.append("album_code", currentAlbumCode);
       fd.append("user_id", userId);
       fd.append("file_url", url);
 
-      const resp = await fetch(`${API}/api/photo/delete`, { method:"POST", body: fd });
-      if(!resp.ok){
-        const t = await resp.text();
-        toast("Ошибка удаления: " + t.slice(0,70));
+      const r = await fetch(`${API}/api/photo/delete`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось удалить");
         return;
       }
-      $("fullModal").classList.remove("show");
-      toast("Удалено ✅");
-      loadPhotos();
+      toast("🗑 Удалено");
+      await loadPhotos();
     }
 
+    // ======= Manage =======
     function openManage(){
-      if(!currentAlbumCode){ toast("Открой альбом 🙂"); return; }
+      if(!currentAlbumCode) return;
+      if(!currentPerms.is_owner){ toast("Настройки доступны владельцу"); return; }
       $("manageModal").classList.add("show");
+    }
+
+    async function createInviteLink(canUpload, canDelete){
+      if(!currentPerms.is_owner){
+        toast("Только владелец может делиться");
+        return null;
+      }
+
+      const maxRaw = prompt("Сколько человек сможет зайти по ссылке?\n0 = без лимита", "20");
+      if(maxRaw === null) return null;
+      let maxUses = parseInt(maxRaw || "0", 10);
+      if(Number.isNaN(maxUses)) maxUses = 20;
+      if(maxUses < 0) maxUses = 20;
+
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("can_upload", canUpload ? "true" : "false");
+      fd.append("can_delete", canDelete ? "true" : "false");
+      fd.append("max_uses", String(maxUses));
+      fd.append("ttl_hours", "168"); // 7 дней
+
+      const r = await fetch(`${API}/api/invite/create`, { method:"POST", body: fd });
+      const d = await r.json();
+
+      if(!r.ok){
+        toast(d?.detail || "Не удалось создать ссылку");
+        return null;
+      }
+      return d.link;
     }
 
     async function shareAlbum(){
       if(!currentAlbumCode) return;
-
-      // По умолчанию (для всех) — старая ссылка.
-      let link = `https://t.me/Iventry_Bot?start=alb_${currentAlbumCode}`;
-
-      // Если ты владелец — делаем одноразовую ссылку с правами.
-      if(currentPerms.is_owner){
-        const pick = prompt(
-          "Ссылка приглашения (одноразовая):\n1 — только просмотр\n2 — может загружать\n3 — может загружать + удалять\n\nВыбери 1/2/3 (по умолчанию 2):",
-          "2"
-        );
-
-        let canUp = true, canDel = false;
-        if(String(pick || "2").trim() === "1"){ canUp = false; canDel = false; }
-        if(String(pick || "2").trim() === "3"){ canUp = true;  canDel = true;  }
-
-        try{
-          link = await createInviteLink(canUp, canDel);
-        }catch(e){
-          toast("Не удалось создать ссылку: " + String(e?.message || e).slice(0,80));
-        }
+      if(!currentPerms.is_owner){
+        toast("Только владелец может делиться");
+        return;
       }
 
-      tg.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Заходи в мой альбом!")}`
+      const mode = prompt(
+        "Права по ссылке:\n1 — 👀 только просмотр\n2 — ✅ можно загружать\n3 — 🗑 загрузка + удаление",
+        "2"
       );
+      if(mode === null) return;
+
+      let canUpload = false, canDelete = false;
+      if(String(mode).trim() === "2"){ canUpload = true; }
+      if(String(mode).trim() === "3"){ canUpload = true; canDelete = true; }
+
+      const link = await createInviteLink(canUpload, canDelete);
+      if(!link) return;
+
+      tg.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Зайди в мой альбом 👇")}`
+      );
+      toast("Выбери чат и отправь ссылку");
     }
 
-    // ======= Переименовать =======
+    // ======= Rename =======
     async function renameAlbum(){
       if(!currentPerms.is_owner){
         toast("Только владелец может переименовать");
@@ -393,187 +523,96 @@
       fd.append("new_name", name);
 
       const resp = await fetch(`${API}/api/album/rename`, { method:"POST", body: fd });
+      const d = await resp.json();
       if(!resp.ok){
-        const t = await resp.text();
-        toast("Ошибка: " + t.slice(0,80));
+        toast(d?.detail || "Не удалось переименовать");
         return;
       }
-      const j = await resp.json();
-      currentAlbumName = j.name || name;
+      currentAlbumName = d.name || name;
       $("topTitle").textContent = currentAlbumName;
+      toast("✏️ Готово");
       $("manageModal").classList.remove("show");
-      toast("Переименовано ✅");
-    }
-
-    // ======= Upload helpers =======
-    async function uploadFile(file){
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("album_code", currentAlbumCode);
-      fd.append("user_id", userId);
-
-      const resp = await fetch(`${API}/api/upload`, { method:"POST", body: fd });
-      if(!resp.ok){
-        const t = await resp.text();
-        throw new Error(t);
-      }
-      return await resp.json();
-    }
-
-    async function openCameraModal(){
-      if(!currentPerms.can_upload && !currentPerms.is_owner){
-        toast("Нет права загрузки");
-        return;
-      }
-      $("cameraModal").classList.add("show");
-
-      try{
-        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio:false });
-        $("camVideo").srcObject = camStream;
-      }catch(e){
-        toast("Камера недоступна. Жми «Фолбэк»");
-      }
-    }
-
-    function closeCameraModal(){
-      $("cameraModal").classList.remove("show");
-      if(camStream){
-        camStream.getTracks().forEach(t=>t.stop());
-        camStream = null;
-      }
-      $("camVideo").srcObject = null;
-    }
-
-    function openFilePickerFallback(){
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.onchange = async () => {
-        const f = input.files?.[0];
-        if(!f) return;
-        try{
-          toast("Загрузка...");
-          await uploadFile(f);
-          toast("Загружено ✅");
-          closeCameraModal();
-          loadPhotos();
-        }catch(e){
-          toast("Ошибка: " + String(e?.message||e).slice(0,70));
-        }
-      };
-      input.click();
-    }
-
-    async function shotFromCamera(){
-      try{
-        const v = $("camVideo");
-        const c = $("camCanvas");
-        const w = v.videoWidth || 720;
-        const h = v.videoHeight || 1280;
-        c.width = w; c.height = h;
-        const ctx = c.getContext("2d");
-        ctx.drawImage(v, 0, 0, w, h);
-
-        c.toBlob(async (blob)=>{
-          if(!blob){ toast("Не получилось сделать фото"); return; }
-          const f = new File([blob], "camera.jpg", { type:"image/jpeg" });
-
-          try{
-            toast("Загрузка...");
-            await uploadFile(f);
-            toast("Загружено ✅");
-            closeCameraModal();
-            loadPhotos();
-          }catch(e){
-            toast("Ошибка: " + String(e?.message||e).slice(0,70));
-          }
-        }, "image/jpeg", 0.92);
-      }catch(e){
-        toast("Ошибка камеры");
-      }
+      await loadAlbums();
     }
 
     // ======= Album delete =======
     async function deleteAlbum(){
       if(!currentPerms.is_owner){
-        toast("Только владелец может удалить альбом");
+        toast("Только владелец может удалить");
         return;
       }
-      if(!confirm("Удалить альбом и все фото?")) return;
+      const ok = confirm("Удалить альбом навсегда?");
+      if(!ok) return;
 
       const fd = new FormData();
       fd.append("album_code", currentAlbumCode);
       fd.append("user_id", userId);
 
       const resp = await fetch(`${API}/api/album/delete`, { method:"POST", body: fd });
+      const d = await resp.json();
       if(!resp.ok){
-        const t = await resp.text();
-        toast("Ошибка удаления: " + t.slice(0,70));
+        toast(d?.detail || "Не удалось удалить");
         return;
       }
+      toast("🗑 Альбом удалён");
       $("manageModal").classList.remove("show");
-      toast("Альбом удалён ✅");
-      closeAlbum();
+      currentAlbumCode = "";
+      currentAlbumName = "";
+      showAlbumsScreen();
+      await loadAlbums();
     }
 
     // ======= Members =======
-    $("memberAddBtn").onclick = () => addMember();
-    $("inviteBtn").onclick = () => inviteMember();
-
     async function openMembers(){
-      $("manageModal").classList.remove("show");
-      $("membersModal").classList.add("show");
-
       if(!currentPerms.is_owner){
-        $("membersOwnerHint").textContent = "Управлять участниками может только владелец альбома.";
-        $("membersAddBox").classList.add("hidden");
-        $("membersList").innerHTML = "";
+        toast("Только владелец может управлять участниками");
         return;
       }
-
-      $("membersOwnerHint").textContent = "Добавляй по Telegram ID или попробуй @username. Самое надёжное — «Пригласить».";
-      $("membersAddBox").classList.remove("hidden");
+      $("membersModal").classList.add("show");
+      $("membersOwnerHint").textContent = "Ты владелец — можешь выдавать права и удалять участников.";
       await loadMembers();
     }
 
-    async function loadMembers(){
-      const r = await fetch(`${API}/api/members/${currentAlbumCode}?user_id=${encodeURIComponent(userId)}`);
-      if(!r.ok){
-        const t = await r.text();
-        toast("Ошибка участников: " + t.slice(0,70));
-        return;
-      }
-      const d = await r.json();
-      $("membersList").innerHTML = d.map(m => `
-        <div class="btn glass rounded-2xl p-3 flex items-center justify-between">
-          <div>
-            <div class="font-semibold">${m.user_id}</div>
-            <div class="text-xs opacity-70">
-              ${m.can_upload ? "может загружать" : "без загрузки"} • ${m.can_delete ? "может удалять" : "без удаления"}
+    function memberCard(m){
+      const name = [m.first_name, m.last_name].filter(Boolean).join(" ").trim() || (m.username ? "@" + m.username : "Без имени");
+      const uname = m.username ? "@" + m.username : "—";
+      const initial = (m.first_name || m.username || "U").toString().charAt(0).toUpperCase();
+      const perms = (m.can_upload ? "✅ загрузка" : "👀 просмотр") + (m.can_delete ? " • 🗑 удаление" : "");
+      return `
+        <div class="glass rounded-2xl p-3 btn flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center font-bold shrink-0">${escapeHtml(initial)}</div>
+            <div class="min-w-0">
+              <div class="font-semibold truncate">${escapeHtml(name)}</div>
+              <div class="text-xs opacity-70">${escapeHtml(uname)}</div>
+              <div class="text-xs opacity-70">ID: ${escapeHtml(String(m.user_id || ""))}</div>
             </div>
           </div>
-          <button class="px-3 py-2 rounded-2xl bg-red-500/15 text-red-200"
-                  onclick="removeMember(${m.user_id})">Удалить</button>
+          <div class="flex flex-col items-end gap-2 shrink-0">
+            <div class="text-[11px] opacity-80">${escapeHtml(perms)}</div>
+            <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
+                    onclick="removeMember(${m.user_id})">Удалить</button>
+          </div>
         </div>
-      `).join("") || `<div class="text-sm opacity-70 mt-2">Пока никого нет</div>`;
+      `;
+    }
+
+    async function loadMembers(){
+      const r = await fetch(`${API}/api/members/${currentAlbumCode}?user_id=${userId}`);
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось получить список");
+        return;
+      }
+      $("membersList").innerHTML = (d || []).map(memberCard).join("") || `<div class="text-xs opacity-70">Пока никого нет</div>`;
     }
 
     async function inviteMember(){
-      // открывает стандартный выбор чата/контакта в Telegram — это реально удобнее всего
-      let link = `https://t.me/Iventry_Bot?start=alb_${currentAlbumCode}`;
+      const canUpload = $("canUploadChk").checked;
+      const canDelete = $("canDeleteChk").checked;
 
-      // Если владелец — создаём одноразовую ссылку с правами из чекбоксов.
-      if(currentPerms.is_owner){
-        const canUp = $("canUploadChk").checked;
-        const canDel = $("canDeleteChk").checked;
-
-        try{
-          link = await createInviteLink(canUp, canDel);
-        }catch(e){
-          toast("Не удалось создать ссылку: " + String(e?.message || e).slice(0,80));
-          return;
-        }
-      }
+      const link = await createInviteLink(canUpload, canDelete);
+      if(!link) return;
 
       tg.openTelegramLink(
         `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Зайди в мой альбом 👇")}`
@@ -587,29 +626,31 @@
 
       let memberId = null;
 
-      // 1) ID
       if(/^\d+$/.test(raw)){
         memberId = Number(raw);
       }
 
-      // 2) @username -> пробуем резолв
-      if(memberId === null && raw.startsWith("@")){
-        try{
-          const rr = await fetch(`${API}/api/resolve?username=${encodeURIComponent(raw)}`);
-          if(!rr.ok){
-            toast("Не удалось по @username. Лучше «Пригласить»");
+      if(memberId === null){
+        let uname = raw;
+        if(uname.startsWith("@")) uname = uname.slice(1);
+        if(/^[A-Za-z0-9_]{5,32}$/.test(uname)){
+          try{
+            const rr = await fetch(`${API}/api/resolve?username=${encodeURIComponent(uname)}`);
+            const dd = await rr.json();
+            if(!rr.ok){
+              toast(dd?.detail || "Не смог найти @username (пусть человек откроет бота)");
+              return;
+            }
+            memberId = dd.user_id;
+          }catch(_){
+            toast("Ошибка резолва @username");
             return;
           }
-          const j = await rr.json();
-          memberId = Number(j.user_id);
-        }catch(e){
-          toast("Не удалось по @username. Лучше «Пригласить»");
-          return;
         }
       }
 
-      if(!memberId || !Number.isFinite(memberId)){
-        toast("Нужен Telegram ID или @username");
+      if(memberId === null){
+        toast("Не понял ввод. Нужен Telegram ID или @username");
         return;
       }
 
@@ -620,36 +661,79 @@
       fd.append("can_upload", $("canUploadChk").checked ? "true" : "false");
       fd.append("can_delete", $("canDeleteChk").checked ? "true" : "false");
 
-      const resp = await fetch(`${API}/api/member/add`, { method:"POST", body: fd });
-      if(!resp.ok){
-        const t = await resp.text();
-        toast("Ошибка добавления: " + t.slice(0,70));
+      const r = await fetch(`${API}/api/member/add`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось добавить");
         return;
       }
-
-      toast("Участник добавлен/обновлён ✅");
+      toast("✅ Участник добавлен");
       $("memberInput").value = "";
       await loadMembers();
     }
 
-    async function removeMember(memberId){
-      if(!confirm("Удалить участника из альбома?")) return;
+    window.removeMember = async function(memberId){
+      const ok = confirm("Удалить участника из альбома?");
+      if(!ok) return;
 
       const fd = new FormData();
       fd.append("album_code", currentAlbumCode);
       fd.append("user_id", userId);
       fd.append("member_id", String(memberId));
 
-      const resp = await fetch(`${API}/api/member/remove`, { method:"POST", body: fd });
-      if(!resp.ok){
-        const t = await resp.text();
-        toast("Ошибка удаления: " + t.slice(0,70));
+      const r = await fetch(`${API}/api/member/remove`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось удалить");
         return;
       }
-      toast("Участник удалён ✅");
+      toast("🗑 Участник удалён");
       await loadMembers();
     }
-  </script>
 
+    // ======= Events =======
+    $("backBtn").onclick = async () => {
+      currentAlbumCode = "";
+      currentAlbumName = "";
+      currentPerms = { is_owner:false, can_upload:false, can_delete:false };
+      showAlbumsScreen();
+      await loadAlbums();
+    };
+
+    $("galleryBtn").onclick = () => {
+      if(!currentPerms.can_upload){ toast("Нет прав на загрузку"); return; }
+      galleryPicker();
+    };
+
+    $("cameraBtn").onclick = async () => {
+      if(!currentPerms.can_upload){ toast("Нет прав на загрузку"); return; }
+      await startCamera();
+    };
+
+    $("shareBtnBottom").onclick = async () => { await shareAlbum(); };
+
+    $("cameraClose").onclick = stopCamera;
+    $("camFallback").onclick = cameraFallback;
+    $("camShot").onclick = takeShot;
+    $("camFlip").onclick = flipCamera;
+
+    $("manageClose").onclick = () => $("manageModal").classList.remove("show");
+    $("membersClose").onclick = () => $("membersModal").classList.remove("show");
+
+    $("renameBtn").onclick = renameAlbum;
+    $("membersBtn").onclick = async () => { $("manageModal").classList.remove("show"); await openMembers(); };
+    $("deleteAlbumBtn").onclick = deleteAlbum;
+
+    $("inviteBtn").onclick = inviteMember;
+    $("memberAddBtn").onclick = addMember;
+
+    for (const id of ["cameraModal","manageModal","membersModal"]){
+      $(id).onclick = (e) => { if(e.target === $(id)) $(id).classList.remove("show"); };
+    }
+
+    // init
+    showAlbumsScreen();
+    loadAlbums();
+  </script>
 </body>
 </html>
