@@ -1,119 +1,186 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; }
-        .glass { background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(15px); }
-        /* Модалка на весь экран */
-        #full-view { 
-            display: none; position: fixed; inset: 0; background: #000; 
-            z-index: 9999; justify-content: center; align-items: center; 
-        }
-        #full-view img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background:#000; color:#fff; margin:0; }
+    .glass { background: rgba(255,255,255,.08); backdrop-filter: blur(15px); }
+    #full-view { display:none; position:fixed; inset:0; background:#000; z-index:9999; justify-content:center; align-items:center; }
+    #full-view img { max-width:100%; max-height:100%; object-fit:contain; }
+  </style>
 </head>
+
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <div id="screen-list" class="p-4 flex-grow overflow-y-auto bg-[#1a1a1a]">
-        <h1 class="text-2xl font-bold mb-6">📸 Альбомы</h1>
-        <div id="albums-list" class="grid gap-3"></div>
+  <div id="screen-list" class="p-4 flex-grow overflow-y-auto bg-[#1a1a1a]">
+    <h1 class="text-2xl font-bold mb-6">📸 Альбомы</h1>
+    <div id="albums-list" class="grid gap-3"></div>
+  </div>
+
+  <div id="screen-album" class="hidden flex flex-col h-full bg-[#111]">
+    <div class="p-4 flex items-center justify-between border-b border-white/5">
+      <button onclick="closeAlb()" class="text-2xl">✕</button>
+      <span id="header-title" class="font-bold truncate max-w-[160px]"></span>
+      <button onclick="shareLink()" class="text-blue-400 font-bold">Поделиться</button>
     </div>
 
-    <div id="screen-album" class="hidden flex flex-col h-full bg-[#111]">
-        <div class="p-4 flex items-center justify-between border-b border-white/5">
-            <button onclick="closeAlb()" class="text-2xl">✕</button>
-            <span id="header-title" class="font-bold truncate max-w-[150px]"></span>
-            <button onclick="shareLink()" class="text-blue-400 font-bold">Поделиться</button>
+    <div id="photo-grid" class="flex-grow overflow-y-auto p-1 grid grid-cols-3 gap-1"></div>
+
+    <!-- Разделённые инпуты -->
+    <input id="galleryInput" type="file" accept="image/*" multiple class="hidden">
+    <input id="cameraInput" type="file" accept="image/*" capture="environment" class="hidden">
+
+    <div class="glass p-6 pb-10 grid grid-cols-3 gap-4 rounded-t-3xl">
+      <button onclick="openGallery()" class="flex flex-col items-center gap-1">
+        <span class="text-2xl">🖼</span>
+        <span class="text-xs opacity-70">Галерея</span>
+      </button>
+
+      <button onclick="openCamera()" class="flex flex-col items-center gap-1">
+        <span class="text-3xl bg-blue-600 rounded-full w-12 h-12 flex items-center justify-center">📸</span>
+        <span class="text-xs opacity-70">Камера</span>
+      </button>
+
+      <button onclick="shareLink()" class="flex flex-col items-center gap-1">
+        <span class="text-2xl">🔗</span>
+        <span class="text-xs opacity-70">Линк</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="full-view" onclick="this.style.display='none'">
+    <img id="full-img" src="">
+    <div class="absolute top-5 right-5 text-2xl font-bold">✕</div>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    const API = "https://bot13-iventry.amvera.io";
+
+    const userId = tg.initDataUnsafe?.user?.id || 123;
+
+    let currentAlbumCode = "";
+    let currentAlbumName = "";
+
+    tg.expand();
+
+    const galleryInput = document.getElementById("galleryInput");
+    const cameraInput = document.getElementById("cameraInput");
+
+    galleryInput.addEventListener("change", () => uploadFiles(galleryInput));
+    cameraInput.addEventListener("change", () => uploadFiles(cameraInput));
+
+    function openGallery() {
+      if (!currentAlbumCode) return;
+      galleryInput.click();
+    }
+
+    function openCamera() {
+      if (!currentAlbumCode) return;
+      cameraInput.click();
+    }
+
+    async function loadAlbums() {
+      const r = await fetch(`${API}/api/albums/${userId}`);
+      const d = await r.json();
+
+      document.getElementById("albums-list").innerHTML = d.map(a => `
+        <div onclick="openAlb('${a.code}', '${escapeHtml(a.name)}')" class="glass p-4 rounded-xl flex justify-between">
+          <span>${escapeHtml(a.name)}</span><span>→</span>
         </div>
+      `).join("");
+    }
 
-        <div id="photo-grid" class="flex-grow overflow-y-auto p-1 grid grid-cols-3 gap-1"></div>
+    async function openAlb(code, name) {
+      currentAlbumCode = code;
+      currentAlbumName = name;
 
-        <div class="glass p-6 pb-10 grid grid-cols-3 gap-4 rounded-t-3xl">
-            <label class="flex flex-col items-center gap-1">
-                <span class="text-2xl">🖼</span>
-                <input type="file" accept="image/*" multiple class="hidden" onchange="upload(this)">
-            </label>
-            <label class="flex flex-col items-center gap-1">
-                <span class="text-3xl bg-blue-600 rounded-full w-12 h-12 flex items-center justify-center">📸</span>
-                <input type="file" accept="image/*" capture="environment" class="hidden" onchange="upload(this)">
-            </label>
-            <button onclick="shareLink()" class="flex flex-col items-center gap-1">
-                <span class="text-2xl">🔗</span>
-            </button>
-        </div>
-    </div>
+      document.getElementById("header-title").innerText = name;
+      document.getElementById("screen-list").style.display = "none";
+      document.getElementById("screen-album").style.display = "flex";
 
-    <div id="full-view" onclick="this.style.display='none'">
-        <img id="full-img" src="">
-        <div class="absolute top-5 right-5 text-2xl font-bold">✕</div>
-    </div>
+      const r = await fetch(`${API}/api/photos/${code}`);
+      const photos = await r.json();
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        const API = "https://bot13-iventry.amvera.io"; // Проверь, что порт 8080
-        const userId = tg.initDataUnsafe?.user?.id || 123;
-        let currentAlbumCode = '';
+      document.getElementById("photo-grid").innerHTML = photos.map(url => {
+        const u = normalizeUrl(url);
+        return `<img src="${u}"
+                    referrerpolicy="no-referrer"
+                    loading="lazy"
+                    decoding="async"
+                    onclick="showFull('${u}')"
+                    class="w-full h-32 object-cover">`;
+      }).join("");
+    }
 
-        tg.expand();
+    function normalizeUrl(url) {
+      if (!url) return "";
+      if (url.startsWith("http://") || url.startsWith("https://")) return url;
+      if (url.startsWith("/")) return API + url;
+      return API + "/" + url;
+    }
 
-        async function loadAlbums() {
-            const r = await fetch(`${API}/api/albums/${userId}`);
-            const d = await r.json();
-            document.getElementById('albums-list').innerHTML = d.map(a => `
-                <div onclick="openAlb('${a.code}', '${a.name}')" class="glass p-4 rounded-xl flex justify-between">
-                    <span>${a.name}</span><span>→</span>
-                </div>
-            `).join('');
+    function showFull(url) {
+      document.getElementById("full-img").src = url;
+      document.getElementById("full-view").style.display = "flex";
+    }
+
+    function closeAlb() {
+      document.getElementById("screen-list").style.display = "block";
+      document.getElementById("screen-album").style.display = "none";
+      currentAlbumCode = "";
+      currentAlbumName = "";
+    }
+
+    async function uploadFiles(inputEl) {
+      const files = Array.from(inputEl.files || []);
+      if (!files.length) return;
+
+      tg.MainButton.setText("Загрузка...").show();
+
+      try {
+        for (const f of files) {
+          const fd = new FormData();
+          fd.append("file", f);
+          fd.append("album_code", currentAlbumCode);
+          fd.append("user_id", userId);
+
+          const resp = await fetch(`${API}/api/upload`, { method: "POST", body: fd });
+          if (!resp.ok) {
+            const t = await resp.text();
+            console.log("upload error:", t);
+          }
         }
 
-        async function openAlb(code, name) {
-            currentAlbumCode = code;
-            document.getElementById('header-title').innerText = name;
-            document.getElementById('screen-list').style.display = 'none';
-            document.getElementById('screen-album').style.display = 'flex';
-            
-            const r = await fetch(`${API}/api/photos/${code}`);
-            const photos = await r.json();
-            document.getElementById('photo-grid').innerHTML = photos.map(url => `
-                <img src="${url}" onclick="showFull('${url}')" class="w-full h-32 object-cover">
-            `).join('');
-        }
+        await openAlb(currentAlbumCode, currentAlbumName);
+      } finally {
+        tg.MainButton.hide();
+        inputEl.value = "";
+      }
+    }
 
-        function showFull(url) {
-            document.getElementById('full-img').src = url;
-            document.getElementById('full-view').style.display = 'flex';
-        }
+    function shareLink() {
+      if (!currentAlbumCode) return;
+      const link = `https://t.me/Iventry_Bot?start=alb_${currentAlbumCode}`;
+      tg.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Заходи в мой альбом!")}`
+      );
+    }
 
-        function closeAlb() {
-            document.getElementById('screen-list').style.display = 'block';
-            document.getElementById('screen-album').style.display = 'none';
-        }
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
-        async function upload(el) {
-            if(!el.files[0]) return;
-            const fd = new FormData();
-            fd.append('file', el.files[0]);
-            fd.append('album_code', currentAlbumCode);
-            fd.append('user_id', userId);
-            
-            tg.MainButton.setText("Загрузка...").show();
-            await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
-            openAlb(currentAlbumCode, document.getElementById('header-title').innerText);
-            tg.MainButton.hide();
-        }
+    loadAlbums();
+  </script>
 
-        // РАБОЧАЯ ССЫЛКА
-        function shareLink() {
-            const link = `https://t.me/Iventry_Bot?start=alb_${currentAlbumCode}`;
-            // Метод, который 100% работает в Mini App
-            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Заходи в мой альбом!")}`);
-        }
-
-        loadAlbums();
-    </script>
 </body>
 </html>
