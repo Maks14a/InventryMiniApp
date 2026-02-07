@@ -29,6 +29,9 @@
         </div>
         <button id="topMenuBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">⚙️</button>
       </div>
+      <div id="guestBanner" class="hidden mt-2 text-xs opacity-70">
+        Ты открыт как <b>гость</b> (ID: 112). Для нормальной работы открой мини-апп внутри Telegram.
+      </div>
     </div>
 
     <!-- Albums screen -->
@@ -125,7 +128,7 @@
           <input type="radio" name="shareRights" value="full">
           <div>
             <div class="font-semibold">🗑 Загрузка + удаление</div>
-            <div class="text-xs opacity-70">Можно удалять любые фото (как модератор)</div>
+            <div class="text-xs opacity-70">Можно удалять любые фото</div>
           </div>
         </label>
       </div>
@@ -142,10 +145,6 @@
         <button id="shareLinkBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">🔗 Создать ссылку и отправить</button>
         <button id="sharePersonBtn" class="btn glass w-full py-3 rounded-2xl">👤 Добавить человека через Telegram</button>
       </div>
-
-      <div class="mt-3 text-xs opacity-70">
-        “Добавить человека” откроет бота, где ты выберешь пользователя — он добавится в альбом.
-      </div>
     </div>
   </div>
 
@@ -153,13 +152,14 @@
   <div id="manageModal" class="modal items-end justify-center p-0">
     <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
       <div class="flex items-center justify-between">
-        <div class="font-bold">⚙️ Настройки альбома</div>
+        <div class="font-bold">⚙️ Настройки</div>
         <button id="manageClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
       </div>
 
       <div class="mt-3 grid gap-2">
         <button id="renameBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">✏️ Переименовать</button>
         <button id="membersBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">👥 Участники</button>
+        <button id="leaveBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4 text-orange-200">🚪 Выйти из альбома</button>
         <button id="deleteAlbumBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4 text-red-300">🗑 Удалить альбом</button>
       </div>
 
@@ -179,6 +179,11 @@
 
       <div id="membersOwnerHint" class="mt-2 text-xs opacity-70"></div>
 
+      <button id="leaveBtnInside" class="hidden mt-3 btn glass w-full py-3 rounded-2xl text-orange-200">
+        🚪 Выйти из альбома
+      </button>
+
+      <!-- add box (только владельцу) -->
       <div id="membersAddBox" class="mt-3 p-3 rounded-2xl bg-white/5">
         <div class="text-sm font-semibold mb-2">Добавить/обновить участника</div>
 
@@ -186,7 +191,6 @@
           <input id="memberInput" class="w-full px-3 py-3 rounded-2xl bg-black/40 outline-none btn"
                  placeholder="Telegram ID (195...) или @username" />
 
-          <!-- ✅ УБРАЛИ одну кнопку приглашения: оставили только "👤 Человек" -->
           <button id="pickBtn" class="btn glass w-full py-3 rounded-2xl">👤 Добавить человека через Telegram</button>
         </div>
 
@@ -221,7 +225,12 @@
     tg.expand();
 
     const API = "https://bot13-iventry.amvera.io";
-    const userId = tg.initDataUnsafe?.user?.id || 0;
+
+    const tgUserId = tg.initDataUnsafe?.user?.id || 0;
+    const isGuest = !tgUserId;
+    const userId = tgUserId || 112;
+
+    if (isGuest) document.getElementById("guestBanner").classList.remove("hidden");
 
     let currentAlbumCode = "";
     let currentAlbumName = "";
@@ -261,10 +270,15 @@
     }
 
     async function loadAlbums(){
-      if(!userId){
-        toast("Не удалось получить Telegram user_id");
+      if(isGuest){
+        $("albumsList").innerHTML = `
+          <div class="glass rounded-2xl p-4 btn">
+            <div class="font-semibold">Открой мини-апп в Telegram</div>
+            <div class="text-xs opacity-70 mt-1">Иначе нельзя определить пользователя (гость: 112).</div>
+          </div>`;
         return;
       }
+
       const r = await fetch(`${API}/api/albums/${userId}`);
       const d = await r.json();
 
@@ -485,7 +499,12 @@
 
     function openManage(){
       if(!currentAlbumCode) return;
-      if(!currentPerms.is_owner){ toast("Настройки доступны владельцу"); return; }
+
+      // владелец — всё видно; участник — только участники + выйти
+      $("renameBtn").style.display = currentPerms.is_owner ? "block" : "none";
+      $("deleteAlbumBtn").style.display = currentPerms.is_owner ? "block" : "none";
+      $("leaveBtn").style.display = currentPerms.is_owner ? "none" : "block";
+
       $("manageModal").classList.add("show");
     }
 
@@ -606,35 +625,91 @@
       await loadAlbums();
     }
 
-    async function openMembers(){
-      if(!currentPerms.is_owner){
-        toast("Только владелец может управлять участниками");
+    async function leaveAlbum(){
+      const ok = confirm("Выйти из альбома?");
+      if(!ok) return;
+
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+
+      const resp = await fetch(`${API}/api/member/leave`, { method:"POST", body: fd });
+      const d = await resp.json();
+      if(!resp.ok){
+        toast(d?.detail || "Не удалось выйти");
         return;
       }
+      toast("🚪 Ты вышел(ла) из альбома");
+      $("manageModal").classList.remove("show");
+      $("membersModal").classList.remove("show");
+      currentAlbumCode = "";
+      currentAlbumName = "";
+      showAlbumsScreen();
+      await loadAlbums();
+    }
+
+    async function openMembers(){
       $("membersModal").classList.add("show");
-      $("membersOwnerHint").textContent = "Ты владелец — можешь выдавать права и удалять участников.";
+
+      if(currentPerms.is_owner){
+        $("membersOwnerHint").textContent = "Ты владелец — можешь менять права и удалять участников.";
+        $("membersAddBox").style.display = "block";
+        $("leaveBtnInside").classList.add("hidden");
+      }else{
+        $("membersOwnerHint").textContent = "Ты участник. Можешь выйти из альбома.";
+        $("membersAddBox").style.display = "none";
+        $("leaveBtnInside").classList.remove("hidden");
+      }
+
       await loadMembers();
     }
 
+    function rightsToSelectValue(m){
+      if(m.can_upload && m.can_delete) return "full";
+      if(m.can_upload) return "upload";
+      return "view";
+    }
+
     function memberCard(m){
-      const name = [m.first_name, m.last_name].filter(Boolean).join(" ").trim() || (m.username ? "@" + m.username : "Без имени");
-      const uname = m.username ? "@" + m.username : "—";
-      const initial = (m.first_name || m.username || "U").toString().charAt(0).toUpperCase();
-      const perms = (m.can_upload ? "✅ загрузка" : "👀 просмотр") + (m.can_delete ? " • 🗑 удаление" : "");
+      const hasProfile = !!(m.username || m.first_name || m.last_name);
+      const displayName = hasProfile
+        ? ([m.first_name, m.last_name].filter(Boolean).join(" ").trim() || ("@" + (m.username||"")))
+        : "Гость";
+      const uname = m.username ? "@" + m.username : (hasProfile ? "—" : "—");
+      const displayId = hasProfile ? m.user_id : 112;
+
+      const initial = (m.first_name || m.username || "G").toString().charAt(0).toUpperCase();
+      const permsText = (m.can_upload ? "✅ загрузка" : "👀 просмотр") + (m.can_delete ? " • 🗑 удаление" : "");
+
+      const rightControls = currentPerms.is_owner ? `
+        <select class="bg-black/40 btn px-2 py-2 rounded-2xl text-xs"
+                onchange="updateMemberPerm(${m.user_id}, this.value)">
+          <option value="view" ${rightsToSelectValue(m)==="view"?"selected":""}>👀 просмотр</option>
+          <option value="upload" ${rightsToSelectValue(m)==="upload"?"selected":""}>✅ загрузка</option>
+          <option value="full" ${rightsToSelectValue(m)==="full"?"selected":""}>🗑 удаление</option>
+        </select>
+        <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
+                onclick="removeMember(${m.user_id})">Удалить</button>
+      ` : `
+        <div class="text-[11px] opacity-80">${escapeHtml(permsText)}</div>
+      `;
+
       return `
         <div class="glass rounded-2xl p-3 btn flex items-center justify-between gap-3">
           <div class="flex items-center gap-3 min-w-0">
-            <div class="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center font-bold shrink-0">${escapeHtml(initial)}</div>
+            <div class="relative w-11 h-11 rounded-2xl bg-white/10 overflow-hidden shrink-0 flex items-center justify-center font-bold">
+              <span class="fallback">${escapeHtml(initial)}</span>
+              <img src="${API}/api/avatar/${m.user_id}" class="absolute inset-0 w-full h-full object-cover"
+                   onerror="this.style.display='none'; this.parentElement.querySelector('.fallback').style.display='flex';" />
+            </div>
             <div class="min-w-0">
-              <div class="font-semibold truncate">${escapeHtml(name)}</div>
+              <div class="font-semibold truncate">${escapeHtml(displayName || "Гость")}</div>
               <div class="text-xs opacity-70">${escapeHtml(uname)}</div>
-              <div class="text-xs opacity-70">ID: ${escapeHtml(String(m.user_id || ""))}</div>
+              <div class="text-xs opacity-70">ID: ${escapeHtml(String(displayId))}</div>
             </div>
           </div>
           <div class="flex flex-col items-end gap-2 shrink-0">
-            <div class="text-[11px] opacity-80">${escapeHtml(perms)}</div>
-            <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
-                    onclick="removeMember(${m.user_id})">Удалить</button>
+            ${rightControls}
           </div>
         </div>
       `;
@@ -648,6 +723,30 @@
         return;
       }
       $("membersList").innerHTML = (d || []).map(memberCard).join("") || `<div class="text-xs opacity-70">Пока никого нет</div>`;
+    }
+
+    window.updateMemberPerm = async function(memberId, mode){
+      if(!currentPerms.is_owner){ toast("Только владелец"); return; }
+
+      let canUpload = false, canDelete = false;
+      if(mode === "upload"){ canUpload = true; }
+      if(mode === "full"){ canUpload = true; canDelete = true; }
+
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("member_id", String(memberId));
+      fd.append("can_upload", canUpload ? "true" : "false");
+      fd.append("can_delete", canDelete ? "true" : "false");
+
+      const r = await fetch(`${API}/api/member/update`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось обновить права");
+        return;
+      }
+      toast("✅ Права обновлены");
+      await loadMembers();
     }
 
     function pickPersonFromMembers(){
@@ -713,6 +812,8 @@
     }
 
     window.removeMember = async function(memberId){
+      if(!currentPerms.is_owner){ toast("Только владелец"); return; }
+
       const ok = confirm("Удалить участника из альбома?");
       if(!ok) return;
 
@@ -731,7 +832,7 @@
       await loadMembers();
     }
 
-    // UI events
+    // ---- UI ----
     $("backBtn").onclick = async () => {
       currentAlbumCode = "";
       currentAlbumName = "";
@@ -771,6 +872,9 @@
     $("renameBtn").onclick = renameAlbum;
     $("membersBtn").onclick = async () => { $("manageModal").classList.remove("show"); await openMembers(); };
     $("deleteAlbumBtn").onclick = deleteAlbum;
+
+    $("leaveBtn").onclick = leaveAlbum;
+    $("leaveBtnInside").onclick = leaveAlbum;
 
     $("pickBtn").onclick = pickPersonFromMembers;
     $("memberAddBtn").onclick = addMember;
