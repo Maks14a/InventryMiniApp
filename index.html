@@ -1,525 +1,823 @@
-import os
-import asyncio
-import uuid
-import random
-from datetime import datetime
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{margin:0;background:#0b0b0f;color:#fff}
+    .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(16px)}
+    .btn{border:1px solid rgba(255,255,255,.12)}
+    .shadow-soft{box-shadow:0 10px 35px rgba(0,0,0,.35)}
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999}
+    .modal.show{display:flex}
+  </style>
+</head>
 
-import psycopg2
-from dotenv import load_dotenv
+<body class="h-screen overflow-hidden">
+  <div class="h-full flex flex-col">
 
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import CommandStart
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
-from aiogram.types.web_app_info import WebAppInfo
+    <div class="px-4 pt-4 pb-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center shadow-soft">📸</div>
+          <div>
+            <div class="text-sm opacity-70 leading-none">Iventry</div>
+            <div id="topTitle" class="font-bold text-lg leading-tight">Альбомы</div>
+          </div>
+        </div>
+        <button id="topMenuBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">⚙️</button>
+      </div>
+    </div>
 
-load_dotenv()
+    <!-- Albums screen -->
+    <div id="screenAlbums" class="flex-1 overflow-y-auto px-4 pb-24">
+      <div class="mt-2 text-sm opacity-70">Твои альбомы и расшаренные</div>
+      <div id="albumsList" class="mt-4 grid gap-3"></div>
+    </div>
 
+    <!-- Album screen -->
+    <div id="screenAlbum" class="hidden flex-1 flex flex-col overflow-hidden">
+      <div class="px-4 pb-3 flex items-center justify-between">
+        <button id="backBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">← Назад</button>
+        <div id="permBadge" class="text-xs px-3 py-2 rounded-2xl bg-white/10"></div>
+        <div class="w-24"></div>
+      </div>
 
-def env_str(name: str) -> str:
-    val = os.getenv(name)
-    if not val:
-        raise RuntimeError(f"{name} не задан")
-    return val
+      <!-- FIX GRID: карточки квадратные через wrapper, чтобы не было "дыр" -->
+      <div id="photoGrid" class="flex-1 overflow-y-auto px-2 pb-2 grid grid-cols-3 gap-2"></div>
 
+      <!-- bottom bar -->
+      <div class="glass p-4 rounded-t-3xl shadow-soft">
+        <div class="flex items-center justify-between gap-3">
+          <button id="galleryBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">🖼 Галерея</button>
+          <button id="cameraBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">📷 Камера</button>
+          <button id="shareBtnBottom" class="btn glass flex-1 py-3 rounded-2xl text-sm text-blue-200">📤 Поделиться</button>
+        </div>
+        <div id="uploadHint" class="mt-2 text-xs opacity-70"></div>
+      </div>
+    </div>
 
-BOT_TOKEN: str = env_str("BOT_TOKEN")
-MINI_APP_URL: str = env_str("MINI_APP_URL")
+  </div>
 
+  <!-- Full image -->
+  <div id="fullModal" class="modal items-center justify-center p-4">
+    <div class="w-full max-w-3xl">
+      <div class="flex justify-end mb-2">
+        <button id="fullClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+      </div>
+      <img id="fullImg" class="w-full max-h-[80vh] object-contain rounded-2xl" src="">
+    </div>
+  </div>
 
-class CreateAlbum(StatesGroup):
-    waiting_for_name = State()
+  <!-- Camera modal -->
+  <div id="cameraModal" class="modal items-center justify-center p-4">
+    <div class="w-full max-w-xl glass rounded-3xl p-4 shadow-soft">
+      <div class="flex items-center justify-between">
+        <div class="font-bold">📷 Камера</div>
+        <div class="flex items-center gap-2">
+          <button id="camFlip" class="btn glass px-3 py-2 rounded-2xl">🔄</button>
+          <button id="cameraClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+        </div>
+      </div>
 
+      <div class="mt-3 rounded-2xl overflow-hidden bg-black/60">
+        <video id="camVideo" playsinline autoplay muted class="w-full h-[52vh] object-cover"></video>
+      </div>
 
-def get_db_connection():
-    return psycopg2.connect(
-        dbname=env_str("DB_NAME"),
-        user=env_str("DB_USER"),
-        password=env_str("DB_PASSWORD"),
-        host=env_str("DB_HOST"),
-        port=int(os.getenv("DB_PORT", "5432")),
-        sslmode=os.getenv("DB_SSLMODE", "require"),
-        connect_timeout=10,
-    )
+      <div class="mt-3 flex gap-2">
+        <button id="camShot" class="btn glass flex-1 py-3 rounded-2xl">📸 Снять</button>
+        <button id="camFallback" class="btn glass px-4 py-3 rounded-2xl">🗂 Фолбэк</button>
+      </div>
 
+      <canvas id="camCanvas" class="hidden"></canvas>
+      <div class="mt-2 text-xs opacity-70">
+        Если видишь чёрный экран — нажми 🔄 (смена камеры) или «Фолбэк».
+      </div>
+    </div>
+  </div>
 
-def ensure_schema():
-    conn = get_db_connection()
-    cur = conn.cursor()
+  <!-- Share modal -->
+  <div id="shareModal" class="modal items-end justify-center p-0">
+    <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
+      <div class="flex items-center justify-between">
+        <div class="font-bold">📤 Поделиться</div>
+        <button id="shareClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+      </div>
 
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS albums (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            owner_id BIGINT NOT NULL,
-            invite_code TEXT UNIQUE NOT NULL
-        );
-        """
-    )
+      <div class="mt-3 text-sm font-semibold">Права для тех, кто зайдёт</div>
+      <div class="mt-2 grid gap-2">
+        <label class="btn glass rounded-2xl px-4 py-3 flex items-center gap-3">
+          <input type="radio" name="shareRights" value="view" checked>
+          <div>
+            <div class="font-semibold">👀 Только просмотр</div>
+            <div class="text-xs opacity-70">Без загрузки и удаления</div>
+          </div>
+        </label>
+        <label class="btn glass rounded-2xl px-4 py-3 flex items-center gap-3">
+          <input type="radio" name="shareRights" value="upload">
+          <div>
+            <div class="font-semibold">✅ Просмотр + загрузка</div>
+            <div class="text-xs opacity-70">Можно добавлять фото</div>
+          </div>
+        </label>
+        <label class="btn glass rounded-2xl px-4 py-3 flex items-center gap-3">
+          <input type="radio" name="shareRights" value="full">
+          <div>
+            <div class="font-semibold">🗑 Загрузка + удаление</div>
+            <div class="text-xs opacity-70">Можно удалять любые фото (как модератор)</div>
+          </div>
+        </label>
+      </div>
 
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS album_members (
-            album_code TEXT NOT NULL,
-            user_id BIGINT NOT NULL,
-            can_upload BOOLEAN DEFAULT TRUE,
-            can_delete BOOLEAN DEFAULT FALSE,
-            username TEXT,
-            first_name TEXT,
-            last_name TEXT,
-            added_at TIMESTAMP DEFAULT NOW(),
-            PRIMARY KEY (album_code, user_id)
-        );
-        """
-    )
+      <div class="mt-4 text-sm font-semibold">Сколько людей смогут зайти</div>
+      <div class="mt-2 flex gap-2">
+        <input id="shareMaxUses" class="flex-1 px-4 py-3 rounded-2xl bg-black/40 outline-none btn"
+               placeholder="Например 20 (0 = без лимита)" value="20">
+        <button id="shareNoLimit" class="btn glass px-4 py-3 rounded-2xl">∞</button>
+      </div>
+      <div class="mt-2 text-xs opacity-70">0 = без лимита. Ссылка действует 7 дней.</div>
 
-    cur.execute("ALTER TABLE album_members ADD COLUMN IF NOT EXISTS can_upload BOOLEAN DEFAULT TRUE;")
-    cur.execute("ALTER TABLE album_members ADD COLUMN IF NOT EXISTS can_delete BOOLEAN DEFAULT FALSE;")
-    cur.execute("ALTER TABLE album_members ADD COLUMN IF NOT EXISTS username TEXT;")
-    cur.execute("ALTER TABLE album_members ADD COLUMN IF NOT EXISTS first_name TEXT;")
-    cur.execute("ALTER TABLE album_members ADD COLUMN IF NOT EXISTS last_name TEXT;")
-    cur.execute("ALTER TABLE album_members ADD COLUMN IF NOT EXISTS added_at TIMESTAMP DEFAULT NOW();")
+      <div class="mt-4 grid gap-2">
+        <button id="shareLinkBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">🔗 Создать ссылку и отправить</button>
+        <button id="sharePersonBtn" class="btn glass w-full py-3 rounded-2xl">👤 Поделиться человеком боту (добавить без ссылки)</button>
+      </div>
 
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS album_invites (
-            token TEXT PRIMARY KEY,
-            album_code TEXT NOT NULL,
-            created_by BIGINT NOT NULL,
-            can_upload BOOLEAN DEFAULT TRUE,
-            can_delete BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT NOW(),
-            expires_at TIMESTAMP NULL,
-            max_uses INT DEFAULT 1,
-            used_count INT DEFAULT 0
-        );
-        """
-    )
+      <div class="mt-3 text-xs opacity-70">
+        “Поделиться человеком” откроет бота, где ты выберешь пользователя — и он добавится в альбом.
+      </div>
+    </div>
+  </div>
 
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS album_invite_uses (
-            token TEXT NOT NULL,
-            user_id BIGINT NOT NULL,
-            used_at TIMESTAMP DEFAULT NOW(),
-            PRIMARY KEY (token, user_id)
-        );
-        """
-    )
+  <!-- Manage modal -->
+  <div id="manageModal" class="modal items-end justify-center p-0">
+    <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
+      <div class="flex items-center justify-between">
+        <div class="font-bold">⚙️ Настройки альбома</div>
+        <button id="manageClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+      </div>
 
-    conn.commit()
-    cur.close()
-    conn.close()
+      <div class="mt-3 grid gap-2">
+        <button id="renameBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">✏️ Переименовать</button>
+        <button id="membersBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">👥 Участники</button>
+        <button id="deleteAlbumBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4 text-red-300">🗑 Удалить альбом</button>
+      </div>
 
+      <div class="mt-3 text-xs opacity-70">
+        Удаление фото: владелец / “может удалять” / автор фото.
+      </div>
+    </div>
+  </div>
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+  <!-- Members modal -->
+  <div id="membersModal" class="modal items-end justify-center p-0">
+    <div class="w-full rounded-t-3xl glass p-4 shadow-soft max-h-[80vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <div class="font-bold">👥 Участники</div>
+        <button id="membersClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+      </div>
 
-# request_id -> data
-PENDING_PICK: dict[int, dict] = {}
+      <div id="membersOwnerHint" class="mt-2 text-xs opacity-70"></div>
 
+      <div id="membersAddBox" class="mt-3 p-3 rounded-2xl bg-white/5">
+        <div class="text-sm font-semibold mb-2">Добавить/обновить участника</div>
 
-def webapp_kb():
-    kb = InlineKeyboardBuilder()
-    kb.row(types.InlineKeyboardButton(text="🖼 Открыть мини-апп", web_app=WebAppInfo(url=MINI_APP_URL)))
-    return kb.as_markup()
+        <div class="grid gap-2">
+          <input id="memberInput" class="w-full px-3 py-3 rounded-2xl bg-black/40 outline-none btn"
+                 placeholder="Telegram ID (195...) или @username" />
 
+          <div class="grid grid-cols-2 gap-2">
+            <button id="inviteBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">🔗 Ссылка</button>
+            <button id="pickBtn" class="btn glass w-full py-3 rounded-2xl">👤 Человек</button>
+          </div>
+        </div>
 
-def _get_album_owner(album_code: str) -> int | None:
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT owner_id FROM albums WHERE invite_code=%s LIMIT 1", (album_code,))
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    return int(row[0]) if row else None
+        <div class="mt-2 flex gap-2 text-xs">
+          <label class="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-2xl">
+            <input id="canUploadChk" type="checkbox" checked>
+            <span>может загружать</span>
+          </label>
+          <label class="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-2xl">
+            <input id="canDeleteChk" type="checkbox">
+            <span>может удалять</span>
+          </label>
+        </div>
 
+        <button id="memberAddBtn" class="mt-2 btn glass w-full py-3 rounded-2xl">✅ Добавить / Обновить</button>
 
-@dp.message(CommandStart())
-async def start_handler(message: types.Message):
-    ensure_schema()
+        <div class="mt-2 text-xs opacity-70">
+          ⚠️ @username может не резолвиться, если человек не открыл бота. Тогда используй “👤 Человек”.
+        </div>
+      </div>
 
-    args = (message.text or "").split()
-    payload = args[1] if len(args) > 1 else ""
+      <div class="mt-3 text-sm font-semibold">Список</div>
+      <div id="membersList" class="mt-2 grid gap-2"></div>
+    </div>
+  </div>
 
-    if not message.from_user:
-        await message.answer("Не смог определить пользователя. Попробуй ещё раз.")
-        return
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl glass shadow-soft text-sm hidden"></div>
 
-    user = message.from_user
-    user_id = user.id
-    username = user.username
-    first_name = user.first_name
-    last_name = user.last_name
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
 
-    # --- 1) pick_ : "поделиться человеком боту" (выбор пользователя через request_user) ---
-    # payload: pick_<albumCode>_<flags>   flags: "00/10/11"
-    if payload.startswith("pick_"):
-        parts = payload.split("_")
-        if len(parts) < 2:
-            await message.answer("❌ Некорректная ссылка.")
-            return
+    const API = "https://bot13-iventry.amvera.io";
+    const userId = tg.initDataUnsafe?.user?.id || 0;
 
-        album_code = parts[1]
-        flags = parts[2] if len(parts) >= 3 else "10"
+    let currentAlbumCode = "";
+    let currentAlbumName = "";
+    let currentPerms = { is_owner:false, can_upload:false, can_delete:false };
 
-        can_upload = (len(flags) >= 1 and flags[0] == "1")
-        can_delete = (len(flags) >= 2 and flags[1] == "1")
+    let camStream = null;
+    let cameraFacing = "environment";
 
-        owner_id = _get_album_owner(album_code)
-        if owner_id is None:
-            await message.answer("❌ Альбом не найден.")
-            return
-        if int(owner_id) != int(user_id):
-            await message.answer("🚫 Эту функцию может использовать только владелец альбома.")
-            return
+    const $ = (id) => document.getElementById(id);
 
-        req_id = random.randint(100000, 999999999)
-        PENDING_PICK[req_id] = {
-            "album_code": album_code,
-            "owner_id": user_id,
-            "can_upload": bool(can_upload),
-            "can_delete": bool(can_delete),
+    function toast(msg){
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.remove("hidden");
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(()=> t.classList.add("hidden"), 2300);
+    }
+
+    function escapeHtml(s){
+      return (s||"").replace(/[&<>"']/g, m => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      })[m]);
+    }
+
+    function showAlbumsScreen(){
+      $("screenAlbums").classList.remove("hidden");
+      $("screenAlbum").classList.add("hidden");
+      $("topTitle").textContent = "Альбомы";
+      $("topMenuBtn").onclick = () => toast("Открой альбом, чтобы управлять 🙂");
+    }
+
+    function showAlbumScreen(){
+      $("screenAlbums").classList.add("hidden");
+      $("screenAlbum").classList.remove("hidden");
+      $("topTitle").textContent = currentAlbumName || "Альбом";
+      $("topMenuBtn").onclick = () => openManage();
+    }
+
+    async function loadAlbums(){
+      if(!userId){
+        toast("Не удалось получить Telegram user_id");
+        return;
+      }
+      const r = await fetch(`${API}/api/albums/${userId}`);
+      const d = await r.json();
+
+      $("albumsList").innerHTML = (d || []).map(a => `
+        <div class="glass rounded-2xl p-4 btn flex items-center justify-between"
+             onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
+          <div>
+            <div class="font-semibold">${escapeHtml(a.name)}</div>
+            <div class="text-xs opacity-70">${a.code}</div>
+          </div>
+          <div class="text-xl">→</div>
+        </div>
+      `).join("");
+    }
+
+    window.openAlbum = async function(code, name){
+      currentAlbumCode = code;
+      currentAlbumName = name;
+      showAlbumScreen();
+      await loadPhotos();
+    }
+
+    async function loadPhotos(){
+      $("photoGrid").innerHTML = "";
+      $("permBadge").textContent = "Загрузка…";
+      $("uploadHint").textContent = "";
+
+      const r = await fetch(`${API}/api/photos/${currentAlbumCode}?user_id=${userId}`);
+      const d = await r.json();
+
+      if(!r.ok){
+        toast(d?.detail || "Ошибка загрузки");
+        currentPerms = {is_owner:false, can_upload:false, can_delete:false};
+        $("permBadge").textContent = "Нет доступа";
+        return;
+      }
+
+      currentPerms = d.perms || {is_owner:false, can_upload:false, can_delete:false};
+      const badge = currentPerms.is_owner
+        ? "👑 Владелец"
+        : (currentPerms.can_upload ? "✅ Участник (загрузка)" : "👀 Просмотр");
+      $("permBadge").textContent = badge;
+
+      $("uploadHint").textContent = currentPerms.can_upload
+        ? "Можно добавлять фото. Удаление: владелец/модератор/автор фото."
+        : "Нет прав на загрузку. Попроси владельца выдать доступ.";
+
+      const items = d.items || [];
+
+      // FIX: квадратная обёртка, чтобы не было гигантских пустот
+      $("photoGrid").innerHTML = items.map(p => `
+        <div class="relative w-full rounded-xl overflow-hidden bg-white/5 btn" style="aspect-ratio:1/1"
+             onclick="openFull('${p.url}')">
+          <img src="${p.url}" class="absolute inset-0 w-full h-full object-cover" loading="lazy">
+          ${renderDeleteBtn(p.url, p.uploaded_by)}
+        </div>
+      `).join("");
+    }
+
+    function renderDeleteBtn(url, uploadedBy){
+      const can = currentPerms.is_owner || currentPerms.can_delete || (uploadedBy && uploadedBy === userId);
+      if(!can) return "";
+      return `
+        <button class="absolute top-1 right-1 bg-black/55 px-2 py-1 rounded-xl text-xs btn"
+                onclick="event.stopPropagation(); deletePhoto('${url}')">🗑</button>
+      `;
+    }
+
+    window.openFull = function(url){
+      $("fullImg").src = url;
+      $("fullModal").classList.add("show");
+    }
+
+    $("fullClose").onclick = () => $("fullModal").classList.remove("show");
+    $("fullModal").onclick = (e) => { if(e.target === $("fullModal")) $("fullModal").classList.remove("show"); };
+
+    function galleryPicker(){
+      const inp = document.createElement("input");
+      inp.type = "file";
+      inp.accept = "image/*";
+      inp.onchange = async () => {
+        if(!inp.files || !inp.files[0]) return;
+        await uploadFile(inp.files[0]);
+      };
+      inp.click();
+    }
+
+    async function uploadFile(file){
+      if(!currentPerms.can_upload){
+        toast("Нет прав на загрузку");
+        return;
+      }
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("file", file);
+
+      const r = await fetch(`${API}/api/upload`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Ошибка загрузки");
+        return;
+      }
+      toast("✅ Загружено");
+      await loadPhotos();
+    }
+
+    async function startCamera(){
+      $("cameraModal").classList.add("show");
+
+      if(camStream){
+        camStream.getTracks().forEach(t => t.stop());
+        camStream = null;
+      }
+
+      try{
+        if(!navigator.mediaDevices?.getUserMedia){
+          throw new Error("getUserMedia not supported");
         }
 
-        # Кнопка выбора пользователя (Telegram Request User)
-        kb = types.ReplyKeyboardMarkup(
-            keyboard=[
-                [
-                    types.KeyboardButton(
-                        text="👤 Выбрать человека",
-                        request_user=types.KeyboardButtonRequestUser(
-                            request_id=req_id,
-                            user_is_bot=False,
-                        ),
-                    )
-                ],
-                [types.KeyboardButton(text="❌ Отмена")],
-            ],
-            resize_keyboard=True,
-            one_time_keyboard=True,
-        )
+        const v = $("camVideo");
+        v.muted = true;
+        v.setAttribute("muted", "");
+        v.setAttribute("playsinline", "");
+        v.autoplay = true;
 
-        rights = []
-        if can_upload:
-            rights.append("загрузка")
-        if can_delete:
-            rights.append("удаление")
-        rights_txt = ", ".join(rights) if rights else "только просмотр"
+        const constraintsA = { video: { facingMode: cameraFacing }, audio: false };
+        const constraintsB = { video: { facingMode: { ideal: cameraFacing } }, audio: false };
 
-        await message.answer(
-            f"Ок! Нажми кнопку ниже и выбери человека.\n"
-            f"Права для добавляемого: **{rights_txt}**",
-            reply_markup=kb,
-            parse_mode="Markdown",
-        )
-        return
+        try{
+          camStream = await navigator.mediaDevices.getUserMedia(constraintsA);
+        }catch(_){
+          camStream = await navigator.mediaDevices.getUserMedia(constraintsB);
+        }
 
-    # --- 2) inv_ : инвайт-ссылка с правами/лимитом ---
-    if payload.startswith("inv_"):
-        token = payload.replace("inv_", "", 1).strip()
+        v.srcObject = camStream;
 
-        try:
-            conn = get_db_connection()
-            cur = conn.cursor()
+        await new Promise((resolve) => {
+          const done = () => resolve();
+          v.onloadedmetadata = done;
+          setTimeout(done, 500);
+        });
 
-            cur.execute(
-                """
-                SELECT album_code, can_upload, can_delete, expires_at, max_uses, used_count
-                FROM album_invites
-                WHERE token=%s
-                FOR UPDATE
-                """,
-                (token,),
-            )
-            row = cur.fetchone()
-            if not row:
-                conn.rollback()
-                cur.close()
-                conn.close()
-                await message.answer("❌ Инвайт-ссылка недействительна или удалена.")
-                return
+        v.style.transform = (cameraFacing === "user") ? "scaleX(-1)" : "none";
+        await v.play();
+      }catch(e){
+        console.log(e);
+        toast("Камера недоступна — жми «Фолбэк»");
+      }
+    }
 
-            album_code, can_upload, can_delete, expires_at, max_uses, used_count = row
-            album_code = str(album_code)
+    function stopCamera(){
+      $("cameraModal").classList.remove("show");
+      const v = $("camVideo");
+      try{ v.pause(); }catch(_){}
+      v.srcObject = null;
+      if(camStream){
+        camStream.getTracks().forEach(t => t.stop());
+        camStream = null;
+      }
+    }
 
-            if expires_at is not None and datetime.utcnow() > expires_at:
-                conn.rollback()
-                cur.close()
-                conn.close()
-                await message.answer("⏳ Инвайт-ссылка истекла. Попроси новую.")
-                return
+    async function flipCamera(){
+      cameraFacing = (cameraFacing === "environment") ? "user" : "environment";
+      await startCamera();
+    }
 
-            # проверяем, не использовал ли уже этот юзер
-            cur.execute(
-                "SELECT 1 FROM album_invite_uses WHERE token=%s AND user_id=%s LIMIT 1",
-                (token, user_id),
-            )
-            already_used = cur.fetchone() is not None
+    async function takeShot(){
+      try{
+        const v = $("camVideo");
+        if(!v || !v.videoWidth){
+          toast("Нет видео — жми «Фолбэк»");
+          return;
+        }
 
-            mu = int(max_uses) if max_uses is not None else 1  # 0 = без лимита
-            uc = int(used_count) if used_count is not None else 0
+        const canvas = $("camCanvas");
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        const ctx = canvas.getContext("2d");
 
-            if not already_used and mu != 0 and uc >= mu:
-                conn.rollback()
-                cur.close()
-                conn.close()
-                await message.answer("🚫 Лимит по этой ссылке закончился. Попроси новую.")
-                return
+        if(cameraFacing === "user"){
+          ctx.save();
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+        }else{
+          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        }
 
-            if not already_used:
-                cur.execute(
-                    """
-                    INSERT INTO album_invite_uses (token, user_id)
-                    VALUES (%s,%s)
-                    ON CONFLICT (token, user_id) DO NOTHING
-                    """,
-                    (token, user_id),
-                )
+        const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.92));
+        if(!blob){
+          toast("Не удалось сделать фото");
+          return;
+        }
+        await uploadFile(new File([blob], "camera.jpg", { type:"image/jpeg" }));
+      }catch(e){
+        console.log(e);
+        toast("Ошибка камеры — жми «Фолбэк»");
+      }
+    }
 
-                if mu == 0:
-                    cur.execute("UPDATE album_invites SET used_count = used_count + 1 WHERE token=%s", (token,))
-                else:
-                    cur.execute(
-                        """
-                        UPDATE album_invites
-                        SET used_count = used_count + 1
-                        WHERE token=%s AND used_count < max_uses
-                        """,
-                        (token,),
-                    )
-                    if cur.rowcount == 0:
-                        conn.rollback()
-                        cur.close()
-                        conn.close()
-                        await message.answer("🚫 Лимит по этой ссылке закончился. Попроси новую.")
-                        return
+    function cameraFallback(){
+      stopCamera();
+      galleryPicker();
+    }
 
-            cur.execute("SELECT name, owner_id FROM albums WHERE invite_code=%s LIMIT 1", (album_code,))
-            arow = cur.fetchone()
-            if not arow:
-                conn.rollback()
-                cur.close()
-                conn.close()
-                await message.answer("❌ Альбом не найден. Попроси новую ссылку.")
-                return
+    window.deletePhoto = async function(url){
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("file_url", url);
 
-            album_name, owner_id = arow
+      const r = await fetch(`${API}/api/photo/delete`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось удалить");
+        return;
+      }
+      toast("🗑 Удалено");
+      await loadPhotos();
+    }
 
-            if int(owner_id) != int(user_id):
-                cur.execute(
-                    """
-                    INSERT INTO album_members (album_code, user_id, can_upload, can_delete, username, first_name, last_name)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s)
-                    ON CONFLICT (album_code, user_id)
-                    DO UPDATE SET
-                        can_upload = EXCLUDED.can_upload,
-                        can_delete = EXCLUDED.can_delete,
-                        username = COALESCE(EXCLUDED.username, album_members.username),
-                        first_name = COALESCE(EXCLUDED.first_name, album_members.first_name),
-                        last_name = COALESCE(EXCLUDED.last_name, album_members.last_name)
-                    """,
-                    (album_code, user_id, bool(can_upload), bool(can_delete), username, first_name, last_name),
-                )
+    function openManage(){
+      if(!currentAlbumCode) return;
+      if(!currentPerms.is_owner){ toast("Настройки доступны владельцу"); return; }
+      $("manageModal").classList.add("show");
+    }
 
-            conn.commit()
-            cur.close()
-            conn.close()
+    function getShareRights(){
+      const v = document.querySelector('input[name="shareRights"]:checked')?.value || "view";
+      if(v === "view")  return {can_upload:false, can_delete:false, flags:"00"};
+      if(v === "upload")return {can_upload:true,  can_delete:false, flags:"10"};
+      return              {can_upload:true,  can_delete:true,  flags:"11"};
+    }
 
-            rights = []
-            if bool(can_upload):
-                rights.append("загрузка")
-            if bool(can_delete):
-                rights.append("удаление")
-            rights_txt = ", ".join(rights) if rights else "только просмотр"
+    function getShareMaxUses(){
+      const raw = ($("shareMaxUses").value || "").trim();
+      let n = parseInt(raw, 10);
+      if(Number.isNaN(n)) n = 20;
+      if(n < 0) n = 20;
+      if(n > 10000) n = 10000;
+      return n; // 0 = без лимита
+    }
 
-            await message.answer(
-                f"✅ Ты добавлен(а) в альбом «{album_name}»\nПрава: {rights_txt}\nОткрой мини-апп: 👇",
-                reply_markup=webapp_kb(),
-            )
-            return
+    async function createInviteLink(canUpload, canDelete, maxUses){
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("can_upload", canUpload ? "true" : "false");
+      fd.append("can_delete", canDelete ? "true" : "false");
+      fd.append("max_uses", String(maxUses));
+      fd.append("ttl_hours", "168");
 
-        except Exception as e:
-            await message.answer(f"❌ Ошибка базы данных: {e}")
-            return
+      const r = await fetch(`${API}/api/invite/create`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось создать ссылку");
+        return null;
+      }
+      return d.link;
+    }
 
-    # --- 3) alb_ : старая ссылка (по умолчанию view-only) ---
-    if payload.startswith("alb_"):
-        code = payload.replace("alb_", "", 1).strip()
+    async function shareByLink(){
+      if(!currentPerms.is_owner){
+        toast("Только владелец может делиться");
+        return;
+      }
+      const rights = getShareRights();
+      const maxUses = getShareMaxUses();
 
-        try:
-            conn = get_db_connection()
-            cur = conn.cursor()
+      const link = await createInviteLink(rights.can_upload, rights.can_delete, maxUses);
+      if(!link) return;
 
-            cur.execute("SELECT name, owner_id FROM albums WHERE invite_code = %s LIMIT 1", (code,))
-            row = cur.fetchone()
-            if not row:
-                cur.close()
-                conn.close()
-                await message.answer("❌ Альбом не найден. Проверь ссылку.")
-                return
+      tg.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Зайди в мой альбом 👇")}`
+      );
+      toast("Выбери чат и отправь ссылку");
+    }
 
-            album_name, owner_id = row
+    function sharePersonToBot(){
+      if(!currentPerms.is_owner){
+        toast("Только владелец может добавлять людей");
+        return;
+      }
+      const rights = getShareRights();
+      // открываем бота в режим выбора пользователя
+      const deep = `https://t.me/Iventry_Bot?start=pick_${currentAlbumCode}_${rights.flags}`;
+      tg.openTelegramLink(deep);
+      toast("Открыл бота — нажми «Выбрать человека»");
+    }
 
-            if int(owner_id) != int(user_id):
-                cur.execute(
-                    """
-                    INSERT INTO album_members (album_code, user_id, can_upload, can_delete, username, first_name, last_name)
-                    VALUES (%s, %s, FALSE, FALSE, %s, %s, %s)
-                    ON CONFLICT (album_code, user_id) DO NOTHING
-                    """,
-                    (code, user_id, username, first_name, last_name),
-                )
-                conn.commit()
+    async function renameAlbum(){
+      if(!currentPerms.is_owner){
+        toast("Только владелец может переименовать");
+        return;
+      }
+      const newName = prompt("Новое название альбома:", currentAlbumName || "");
+      if(newName === null) return;
 
-            cur.close()
-            conn.close()
+      const name = (newName || "").trim();
+      if(!name){ toast("Название пустое"); return; }
 
-            await message.answer(
-                f"✅ Альбом «{album_name}» доступен.\nОткрой мини-апп: 👇",
-                reply_markup=webapp_kb(),
-            )
-            return
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("new_name", name);
 
-        except Exception as e:
-            await message.answer(f"❌ Ошибка базы данных: {e}")
-            return
+      const resp = await fetch(`${API}/api/album/rename`, { method:"POST", body: fd });
+      const d = await resp.json();
+      if(!resp.ok){
+        toast(d?.detail || "Не удалось переименовать");
+        return;
+      }
+      currentAlbumName = d.name || name;
+      $("topTitle").textContent = currentAlbumName;
+      toast("✏️ Готово");
+      $("manageModal").classList.remove("show");
+      await loadAlbums();
+    }
 
-    # обычный старт
-    builder = InlineKeyboardBuilder()
-    builder.row(types.InlineKeyboardButton(text="📸 Создать альбом", callback_data="create_album"))
-    builder.row(types.InlineKeyboardButton(text="🖼 Мои альбомы", web_app=WebAppInfo(url=MINI_APP_URL)))
-    await message.answer("Iventry: Совместные альбомы 📸", reply_markup=builder.as_markup())
+    async function deleteAlbum(){
+      if(!currentPerms.is_owner){
+        toast("Только владелец может удалить");
+        return;
+      }
+      const ok = confirm("Удалить альбом навсегда?");
+      if(!ok) return;
 
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
 
-@dp.message(F.text == "❌ Отмена")
-async def cancel_pick(message: types.Message):
-    # просто убираем клаву
-    await message.answer("Ок.", reply_markup=types.ReplyKeyboardRemove())
+      const resp = await fetch(`${API}/api/album/delete`, { method:"POST", body: fd });
+      const d = await resp.json();
+      if(!resp.ok){
+        toast(d?.detail || "Не удалось удалить");
+        return;
+      }
+      toast("🗑 Альбом удалён");
+      $("manageModal").classList.remove("show");
+      currentAlbumCode = "";
+      currentAlbumName = "";
+      showAlbumsScreen();
+      await loadAlbums();
+    }
 
+    async function openMembers(){
+      if(!currentPerms.is_owner){
+        toast("Только владелец может управлять участниками");
+        return;
+      }
+      $("membersModal").classList.add("show");
+      $("membersOwnerHint").textContent = "Ты владелец — можешь выдавать права и удалять участников.";
+      await loadMembers();
+    }
 
-@dp.message(F.user_shared)
-async def on_user_shared(message: types.Message):
-    # один пользователь выбран
-    us = message.user_shared
-    req_id = int(us.request_id)
-    data = PENDING_PICK.pop(req_id, None)
-    await message.answer("", reply_markup=types.ReplyKeyboardRemove())
+    function memberCard(m){
+      const name = [m.first_name, m.last_name].filter(Boolean).join(" ").trim() || (m.username ? "@" + m.username : "Без имени");
+      const uname = m.username ? "@" + m.username : "—";
+      const initial = (m.first_name || m.username || "U").toString().charAt(0).toUpperCase();
+      const perms = (m.can_upload ? "✅ загрузка" : "👀 просмотр") + (m.can_delete ? " • 🗑 удаление" : "");
+      return `
+        <div class="glass rounded-2xl p-3 btn flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center font-bold shrink-0">${escapeHtml(initial)}</div>
+            <div class="min-w-0">
+              <div class="font-semibold truncate">${escapeHtml(name)}</div>
+              <div class="text-xs opacity-70">${escapeHtml(uname)}</div>
+              <div class="text-xs opacity-70">ID: ${escapeHtml(String(m.user_id || ""))}</div>
+            </div>
+          </div>
+          <div class="flex flex-col items-end gap-2 shrink-0">
+            <div class="text-[11px] opacity-80">${escapeHtml(perms)}</div>
+            <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
+                    onclick="removeMember(${m.user_id})">Удалить</button>
+          </div>
+        </div>
+      `;
+    }
 
-    if not data:
-        await message.answer("Запрос устарел. Открой мини-апп и попробуй ещё раз.")
-        return
+    async function loadMembers(){
+      const r = await fetch(`${API}/api/members/${currentAlbumCode}?user_id=${userId}`);
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось получить список");
+        return;
+      }
+      $("membersList").innerHTML = (d || []).map(memberCard).join("") || `<div class="text-xs opacity-70">Пока никого нет</div>`;
+    }
 
-    album_code = data["album_code"]
-    can_upload = bool(data["can_upload"])
-    can_delete = bool(data["can_delete"])
+    async function inviteByLinkFromMembers(){
+      // создаём ссылку на основе чекбоксов
+      if(!currentPerms.is_owner){ toast("Только владелец"); return; }
 
-    selected_user_id = int(us.user_id)
+      const canUpload = $("canUploadChk").checked;
+      const canDelete = $("canDeleteChk").checked;
 
-    # пробуем получить профиль (получится только если бот может get_chat этого человека)
-    username = None
-    first_name = None
-    last_name = None
-    try:
-        chat = await bot.get_chat(selected_user_id)
-        username = getattr(chat, "username", None)
-        first_name = getattr(chat, "first_name", None)
-        last_name = getattr(chat, "last_name", None)
-    except Exception:
-        pass
+      // лимит — берём из shareMaxUses если открыт shareModal, иначе дефолт 20
+      let maxUses = 20;
+      const v = $("shareMaxUses")?.value;
+      if(v != null){
+        const n = parseInt(String(v).trim(), 10);
+        if(!Number.isNaN(n)) maxUses = n;
+      }
 
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+      const link = await createInviteLink(canUpload, canDelete, maxUses);
+      if(!link) return;
 
-        owner_id = _get_album_owner(album_code)
-        if owner_id is None:
-            cur.close()
-            conn.close()
-            await message.answer("❌ Альбом не найден.")
-            return
+      tg.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Зайди в мой альбом 👇")}`
+      );
+      toast("Выбери чат и отправь ссылку");
+    }
 
-        if int(owner_id) == int(selected_user_id):
-            cur.close()
-            conn.close()
-            await message.answer("Это владелец альбома 🙂")
-            return
+    function pickPersonFromMembers(){
+      if(!currentPerms.is_owner){ toast("Только владелец"); return; }
+      const canUpload = $("canUploadChk").checked;
+      const canDelete = $("canDeleteChk").checked;
+      const flags = (canUpload ? "1" : "0") + (canDelete ? "1" : "0");
+      const deep = `https://t.me/Iventry_Bot?start=pick_${currentAlbumCode}_${flags}`;
+      tg.openTelegramLink(deep);
+      toast("Открыл бота — нажми «Выбрать человека»");
+    }
 
-        cur.execute(
-            """
-            INSERT INTO album_members (album_code, user_id, can_upload, can_delete, username, first_name, last_name)
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
-            ON CONFLICT (album_code, user_id)
-            DO UPDATE SET
-                can_upload = EXCLUDED.can_upload,
-                can_delete = EXCLUDED.can_delete,
-                username = COALESCE(EXCLUDED.username, album_members.username),
-                first_name = COALESCE(EXCLUDED.first_name, album_members.first_name),
-                last_name = COALESCE(EXCLUDED.last_name, album_members.last_name)
-            """,
-            (album_code, selected_user_id, can_upload, can_delete, username, first_name, last_name),
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
+    async function addMember(){
+      let raw = ($("memberInput").value || "").trim();
+      if(!raw){ toast("Введи ID или @username"); return; }
 
-        rights = []
-        if can_upload:
-            rights.append("загрузка")
-        if can_delete:
-            rights.append("удаление")
-        rights_txt = ", ".join(rights) if rights else "только просмотр"
+      let memberId = null;
 
-        await message.answer(f"✅ Добавил пользователя {selected_user_id} в альбом.\nПрава: {rights_txt}")
-    except Exception as e:
-        await message.answer(f"❌ Ошибка базы данных: {e}")
+      if(/^\d+$/.test(raw)){
+        memberId = Number(raw);
+      }
 
+      if(memberId === null){
+        let uname = raw;
+        if(uname.startsWith("@")) uname = uname.slice(1);
+        if(/^[A-Za-z0-9_]{5,32}$/.test(uname)){
+          try{
+            const rr = await fetch(`${API}/api/resolve?username=${encodeURIComponent(uname)}`);
+            const dd = await rr.json();
+            if(!rr.ok){
+              toast("Не смог найти @username — пусть человек откроет бота, или жми «👤 Человек»");
+              return;
+            }
+            memberId = dd.user_id;
+          }catch(_){
+            toast("Ошибка резолва @username");
+            return;
+          }
+        }
+      }
 
-@dp.callback_query(F.data == "create_album")
-async def start_create(callback: types.CallbackQuery, state: FSMContext):
-    await callback.answer()
-    await state.set_state(CreateAlbum.waiting_for_name)
-    if callback.message:
-        await callback.message.answer("Как назовём альбом?")
+      if(memberId === null){
+        toast("Нужен Telegram ID или @username");
+        return;
+      }
 
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("member_id", String(memberId));
+      fd.append("can_upload", $("canUploadChk").checked ? "true" : "false");
+      fd.append("can_delete", $("canDeleteChk").checked ? "true" : "false");
 
-@dp.message(CreateAlbum.waiting_for_name)
-async def name_step(message: types.Message, state: FSMContext):
-    name = (message.text or "").strip()
-    if not name:
-        await message.answer("Название не может быть пустым. Напиши ещё раз 🙂")
-        return
-    if not message.from_user:
-        await message.answer("Не смог определить пользователя. Попробуй ещё раз.")
-        return
+      const r = await fetch(`${API}/api/member/add`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось добавить");
+        return;
+      }
+      toast("✅ Участник добавлен");
+      $("memberInput").value = "";
+      await loadMembers();
+    }
 
-    code = str(uuid.uuid4())[:8]
+    window.removeMember = async function(memberId){
+      const ok = confirm("Удалить участника из альбома?");
+      if(!ok) return;
 
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO albums (name, owner_id, invite_code) VALUES (%s, %s, %s)",
-            (name, message.from_user.id, code),
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("member_id", String(memberId));
 
-        await message.answer(
-            f"✅ Альбом создан!\nКод: `{code}`\n\nОткрой мини-апп и нажми «📤 Поделиться».",
-            parse_mode="Markdown",
-        )
-        await state.clear()
-    except Exception as e:
-        await message.answer(f"❌ Ошибка базы данных: {e}")
+      const r = await fetch(`${API}/api/member/remove`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось удалить");
+        return;
+      }
+      toast("🗑 Участник удалён");
+      await loadMembers();
+    }
 
+    // ----- UI events -----
+    $("backBtn").onclick = async () => {
+      currentAlbumCode = "";
+      currentAlbumName = "";
+      currentPerms = { is_owner:false, can_upload:false, can_delete:false };
+      showAlbumsScreen();
+      await loadAlbums();
+    };
 
-async def main():
-    await dp.start_polling(bot)
+    $("galleryBtn").onclick = () => {
+      if(!currentPerms.can_upload){ toast("Нет прав на загрузку"); return; }
+      galleryPicker();
+    };
 
+    $("cameraBtn").onclick = async () => {
+      if(!currentPerms.can_upload){ toast("Нет прав на загрузку"); return; }
+      await startCamera();
+    };
 
-if __name__ == "__main__":
-    asyncio.run(main())
+    $("shareBtnBottom").onclick = () => {
+      if(!currentPerms.is_owner){ toast("Поделиться может только владелец"); return; }
+      $("shareModal").classList.add("show");
+    };
+
+    $("shareClose").onclick = () => $("shareModal").classList.remove("show");
+    $("shareNoLimit").onclick = () => { $("shareMaxUses").value = "0"; toast("Без лимита ✅"); }
+    $("shareLinkBtn").onclick = async () => { await shareByLink(); }
+    $("sharePersonBtn").onclick = () => { sharePersonToBot(); }
+
+    $("cameraClose").onclick = stopCamera;
+    $("camFallback").onclick = cameraFallback;
+    $("camShot").onclick = takeShot;
+    $("camFlip").onclick = flipCamera;
+
+    $("manageClose").onclick = () => $("manageModal").classList.remove("show");
+    $("membersClose").onclick = () => $("membersModal").classList.remove("show");
+
+    $("renameBtn").onclick = renameAlbum;
+    $("membersBtn").onclick = async () => { $("manageModal").classList.remove("show"); await openMembers(); };
+    $("deleteAlbumBtn").onclick = deleteAlbum;
+
+    $("inviteBtn").onclick = inviteByLinkFromMembers;
+    $("pickBtn").onclick = pickPersonFromMembers;
+    $("memberAddBtn").onclick = addMember;
+
+    $("topMenuBtn").onclick = () => openManage();
+
+    for (const id of ["cameraModal","manageModal","membersModal","shareModal"]){
+      $(id).onclick = (e) => { if(e.target === $(id)) $(id).classList.remove("show"); };
+    }
+
+    // init
+    showAlbumsScreen();
+    loadAlbums();
+  </script>
+</body>
+</html>
