@@ -8,9 +8,9 @@
 
   <style>
     :root{
-      --dur: 200ms;
-      --dur2: 260ms;
-      --e: cubic-bezier(.2,.8,.2,1);
+      --dur: 220ms;
+      --dur2: 280ms;
+      --e: cubic-bezier(.2,.85,.2,1);
     }
     *{ -webkit-tap-highlight-color: transparent; }
     body{margin:0;background:#0b0b0f;color:#fff}
@@ -18,7 +18,12 @@
     .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(16px)}
     .btn{
       border:1px solid rgba(255,255,255,.12);
-      transition: transform var(--dur) var(--e), background var(--dur) var(--e), border-color var(--dur) var(--e), opacity var(--dur) var(--e);
+      transition:
+        transform var(--dur) var(--e),
+        background var(--dur) var(--e),
+        border-color var(--dur) var(--e),
+        opacity var(--dur) var(--e),
+        filter var(--dur) var(--e);
       will-change: transform, opacity;
     }
     .btn:active{ transform: scale(.98); }
@@ -26,10 +31,10 @@
 
     .shadow-soft{box-shadow:0 10px 35px rgba(0,0,0,.35)}
 
-    /* ✅ MODALS with smooth animations */
+    /* MODALS */
     .modal{
       position:fixed; inset:0;
-      background:rgba(0,0,0,.65);
+      background:rgba(0,0,0,.68);
       z-index:9999;
       display:flex;
       opacity:0;
@@ -40,23 +45,23 @@
 
     /* bottom sheet */
     .sheet{
-      transform: translateY(18px);
+      transform: translate3d(0,18px,0);
       opacity:0;
       transition: transform var(--dur2) var(--e), opacity var(--dur2) var(--e);
       will-change: transform, opacity;
     }
-    .modal.show .sheet{ transform: translateY(0); opacity:1; }
+    .modal.show .sheet{ transform: translate3d(0,0,0); opacity:1; }
 
-    /* center card (full image / camera) */
+    /* center card */
     .centerCard{
-      transform: scale(.96);
+      transform: scale(.965);
       opacity:0;
       transition: transform var(--dur2) var(--e), opacity var(--dur2) var(--e);
       will-change: transform, opacity;
     }
     .modal.show .centerCard{ transform: scale(1); opacity:1; }
 
-    /* ✅ nice toggle */
+    /* nice toggle */
     .tg-toggle{
       width:48px; height:28px;
       border-radius:999px;
@@ -64,6 +69,7 @@
       position:relative;
       transition: background var(--dur) var(--e);
       flex: 0 0 auto;
+      cursor:pointer;
     }
     .tg-toggle .dot{
       position:absolute; top:4px; left:4px;
@@ -72,17 +78,22 @@
       background:rgba(255,255,255,.85);
       transition: transform var(--dur) var(--e);
       will-change: transform;
+      pointer-events:none; /* ✅ чтобы клики шли в трек */
     }
-    input:checked + .tg-toggle .dot{ transform: translateX(20px); }
+    input:checked + .tg-toggle .dot{ transform: translate3d(20px,0,0); }
     input:checked + .tg-toggle.tg-green{ background:rgba(34,197,94,.35); }
     input:checked + .tg-toggle.tg-red{ background:rgba(239,68,68,.35); }
     input:checked + .tg-toggle.tg-blue{ background:rgba(59,130,246,.35); }
 
-    /* ✅ photo tiles (no aspect-ratio bugs) */
+    /* ✅ PHOTO GRID (фикс квадратов, 3 в ряд, без растягивания) */
     #photoGrid{
       display:grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
+      gap: 10px;
+      align-content: start;
+      align-items: start;     /* ✅ чтобы НЕ тянуло элементы по Y */
+      justify-items: stretch;
+      padding-bottom: 8px;
     }
     .photo-tile{
       position:relative;
@@ -91,41 +102,81 @@
       overflow:hidden;
       background:rgba(255,255,255,.05);
       border:1px solid rgba(255,255,255,.10);
-      transition: transform var(--dur) var(--e), border-color var(--dur) var(--e);
+      transition: transform var(--dur) var(--e), border-color var(--dur) var(--e), filter var(--dur) var(--e);
+      align-self: start;      /* ✅ */
+      will-change: transform;
     }
-    .photo-tile:hover{ border-color: rgba(255,255,255,.22); }
-    .photo-tile:active{ transform: scale(.98); }
+    .photo-tile:hover{ border-color: rgba(255,255,255,.22); filter: brightness(1.03); }
+    .photo-tile:active{ transform: scale(.985); }
+
+    /* ✅ квадрат через padding (без aspect-ratio бага) */
     .photo-tile::before{
       content:"";
       display:block;
-      padding-top:100%; /* ✅ always square */
+      padding-top:100%;
     }
     .photo-tile img{
       position:absolute; inset:0;
       width:100%; height:100%;
       object-fit: cover;
+      transform: translate3d(0,0,0);
     }
 
-    /* ✅ small "pop" animation for inserted cards */
     @keyframes popIn{
-      from{ opacity:0; transform: translateY(10px); }
-      to{ opacity:1; transform: translateY(0); }
+      from{ opacity:0; transform: translate3d(0,10px,0); }
+      to{ opacity:1; transform: translate3d(0,0,0); }
     }
     .pop{ animation: popIn var(--dur2) var(--e) both; }
 
-    /* full image action bar */
+    /* Fullscreen viewer */
     .fullbar{
       position:absolute;
       top:12px; left:12px; right:12px;
       display:flex;
       justify-content:flex-end;
       gap:8px;
-      z-index:2;
+      z-index:5;
+      pointer-events:auto;
     }
     .fullbar .mini{
       background: rgba(0,0,0,.45);
       border: 1px solid rgba(255,255,255,.14);
       backdrop-filter: blur(12px);
+    }
+
+    #fullViewer{
+      position:relative;
+      overflow:hidden;
+      border-radius: 16px;
+      background: rgba(0,0,0,.35);
+      touch-action: none; /* ✅ для свайпа/пинча */
+    }
+
+    #fullTrack{
+      display:flex;
+      transform: translate3d(0,0,0);
+      transition: transform var(--dur2) var(--e);
+      will-change: transform;
+    }
+    #fullTrack.dragging{ transition: none; }
+
+    .fullSlide{
+      min-width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 10px;
+      box-sizing:border-box;
+    }
+    .fullImg{
+      max-height: 78vh;
+      width: 100%;
+      object-fit: contain;
+      user-select:none;
+      -webkit-user-drag:none;
+      transform: translate3d(0,0,0) scale(1);
+      transform-origin: center center;
+      will-change: transform;
     }
   </style>
 </head>
@@ -164,7 +215,7 @@
         <div class="w-24"></div>
       </div>
 
-      <div id="photoGrid" class="flex-1 overflow-y-auto px-2 pb-2"></div>
+      <div id="photoGrid" class="flex-1 overflow-y-auto px-2"></div>
 
       <!-- bottom -->
       <div class="glass p-4 rounded-t-3xl shadow-soft sheet" style="opacity:1;transform:none">
@@ -179,15 +230,25 @@
 
   </div>
 
-  <!-- Full image -->
+  <!-- Full image (SWIPE + ZOOM) -->
   <div id="fullModal" class="modal items-center justify-center p-4">
     <div class="w-full max-w-3xl relative centerCard">
       <div class="fullbar">
+        <button id="fullZoom" class="mini btn px-3 py-2 rounded-2xl text-sm">🔍</button>
         <button id="fullDownload" class="mini btn px-3 py-2 rounded-2xl text-sm">⬇️</button>
         <button id="fullDelete" class="mini btn px-3 py-2 rounded-2xl text-sm hidden">🗑</button>
         <button id="fullClose" class="mini btn px-3 py-2 rounded-2xl text-sm">✕</button>
       </div>
-      <img id="fullImg" class="w-full max-h-[80vh] object-contain rounded-2xl" src="">
+
+      <div id="fullViewer" class="w-full">
+        <div id="fullTrack">
+          <!-- 3 slides (prev / current / next) injected -->
+        </div>
+      </div>
+
+      <div class="mt-2 text-xs opacity-70 px-1">
+        Свайп — листать. Двойной тап / 🔍 — зум. Пинч — масштаб.
+      </div>
     </div>
   </div>
 
@@ -236,7 +297,7 @@
           </div>
           <div class="flex items-center gap-3">
             <input id="shareCanUpload" type="checkbox" class="sr-only" checked>
-            <span class="tg-toggle tg-green"><span class="dot"></span></span>
+            <span class="tg-toggle tg-green" aria-label="toggle upload"><span class="dot"></span></span>
           </div>
         </label>
 
@@ -247,7 +308,7 @@
           </div>
           <div class="flex items-center gap-3">
             <input id="shareCanDelete" type="checkbox" class="sr-only">
-            <span class="tg-toggle tg-red"><span class="dot"></span></span>
+            <span class="tg-toggle tg-red" aria-label="toggle delete"><span class="dot"></span></span>
           </div>
         </label>
       </div>
@@ -302,7 +363,6 @@
         🚪 Выйти из альбома
       </button>
 
-      <!-- Add / Update by ID (only owner) -->
       <div id="membersAddBox" class="mt-3 p-3 rounded-2xl bg-white/5">
         <div class="text-sm font-semibold mb-2">Добавить/обновить участника</div>
 
@@ -370,7 +430,26 @@
     let camStream = null;
     let cameraFacing = "environment";
 
-    let fullState = { url: "", uploadedBy: 0 };
+    // album photos cache for fullscreen swipe
+    let albumPhotos = []; // [{url, uploaded_by}]
+    let fullIndex = 0;
+
+    // zoom state (for current slide)
+    let zoom = 1;
+    let panX = 0;
+    let panY = 0;
+
+    // swipe/gesture state
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let dx = 0;
+    let dy = 0;
+    let lastTapAt = 0;
+
+    let pinching = false;
+    let pinchStartDist = 0;
+    let pinchStartZoom = 1;
 
     const $ = (id) => document.getElementById(id);
 
@@ -386,24 +465,6 @@
       return (s||"").replace(/[&<>"']/g, m => ({
         "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
       })[m]);
-    }
-
-    /* ✅ make custom toggles clickable + animated */
-    function bindToggle(inputId){
-      const inp = $(inputId);
-      if(!inp) return;
-      const track = inp.parentElement?.querySelector(".tg-toggle");
-      if(track){
-        const sync = () => {
-          // dot animation happens via CSS when input is checked, but track is sibling, not + in DOM
-          // so we simulate checkbox state by toggling a class on track and using CSS via checked not possible here.
-          // easiest: move track after input? It's already after input, but inside a wrapper div.
-          // We'll just keep input + track directly by ensuring markup order: input then span (we did).
-        };
-        track.onclick = () => inp.click();
-        inp.addEventListener("change", sync);
-        sync();
-      }
     }
 
     function showAlbumsScreen(){
@@ -479,38 +540,269 @@
         : "Нет прав на загрузку. Попроси владельца выдать доступ.";
 
       const items = d.items || [];
+      albumPhotos = items.map(p => ({ url: p.url, uploaded_by: p.uploaded_by || 0 }));
 
-      // ✅ only squares, always 3 per row, no overlays
       $("photoGrid").innerHTML = items.map((p,i) => `
         <div class="photo-tile pop"
              style="animation-delay:${i*15}ms"
-             onclick="openFull('${p.url}', ${p.uploaded_by || 0})">
+             onclick="openFullByUrl('${p.url}')">
           <img src="${p.url}" loading="lazy" />
         </div>
       `).join("");
     }
 
-    // ✅ Fullscreen actions
-    window.openFull = function(url, uploadedBy){
-      fullState = { url, uploadedBy: uploadedBy || 0 };
-      $("fullImg").src = url;
+    // ===== FULLSCREEN SWIPE + ZOOM =====
 
-      // show delete only if allowed (owner/moderator/author)
-      const canDelete = currentPerms.is_owner || currentPerms.can_delete || (fullState.uploadedBy && fullState.uploadedBy === userId);
-      $("fullDelete").classList.toggle("hidden", !canDelete);
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
+    function canDeletePhoto(photo){
+      return !!(currentPerms.is_owner || currentPerms.can_delete || (photo?.uploaded_by && photo.uploaded_by === userId));
+    }
+
+    function resetZoom(animated=true){
+      zoom = 1; panX = 0; panY = 0;
+      applyZoom(animated);
+    }
+
+    function getViewerRect(){
+      return $("fullViewer").getBoundingClientRect();
+    }
+
+    function getCurrentImgEl(){
+      return document.querySelector('#fullTrack .fullSlide[data-pos="cur"] img');
+    }
+
+    function applyZoom(animated=true){
+      const img = getCurrentImgEl();
+      if(!img) return;
+      img.style.transition = animated ? `transform var(--dur2) var(--e)` : "none";
+      img.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`;
+      // remove transition after a tick to keep panning smooth
+      if(animated){
+        setTimeout(()=> { if(img) img.style.transition = ""; }, 300);
+      }
+    }
+
+    function renderFullSlides(){
+      // 3-slides virtual carousel: prev / cur / next
+      const prev = albumPhotos[fullIndex - 1] || null;
+      const cur  = albumPhotos[fullIndex] || null;
+      const next = albumPhotos[fullIndex + 1] || null;
+
+      const track = $("fullTrack");
+      track.innerHTML = `
+        <div class="fullSlide" data-pos="prev">
+          ${prev ? `<img class="fullImg" src="${prev.url}" draggable="false">` : `<div class="text-xs opacity-60">—</div>`}
+        </div>
+        <div class="fullSlide" data-pos="cur">
+          ${cur ? `<img class="fullImg" src="${cur.url}" draggable="false">` : `<div class="text-xs opacity-60">—</div>`}
+        </div>
+        <div class="fullSlide" data-pos="next">
+          ${next ? `<img class="fullImg" src="${next.url}" draggable="false">` : `<div class="text-xs opacity-60">—</div>`}
+        </div>
+      `;
+
+      // place track so that "cur" is visible
+      const w = getViewerRect().width;
+      track.classList.remove("dragging");
+      track.style.transform = `translate3d(${-w}px, 0, 0)`;
+
+      // buttons visibility
+      const photo = albumPhotos[fullIndex] || null;
+      $("fullDelete").classList.toggle("hidden", !canDeletePhoto(photo));
+
+      // reset zoom each slide (приятнее + меньше багов)
+      resetZoom(false);
+    }
+
+    function openFullAt(index){
+      if(!albumPhotos.length) return;
+      fullIndex = clamp(index, 0, albumPhotos.length - 1);
+      renderFullSlides();
       $("fullModal").classList.add("show");
     }
 
-    $("fullClose").onclick = () => $("fullModal").classList.remove("show");
-    $("fullModal").onclick = (e) => { if(e.target === $("fullModal")) $("fullModal").classList.remove("show"); };
+    window.openFullByUrl = function(url){
+      const idx = albumPhotos.findIndex(p => p.url === url);
+      openFullAt(idx >= 0 ? idx : 0);
+    }
+
+    function animateToNext(){
+      if(fullIndex >= albumPhotos.length - 1){ snapBack(); return; }
+      const track = $("fullTrack");
+      const w = getViewerRect().width;
+      track.classList.remove("dragging");
+      track.style.transform = `translate3d(${-2*w}px, 0, 0)`;
+      track.addEventListener("transitionend", onDone, { once:true });
+      function onDone(){
+        fullIndex++;
+        renderFullSlides();
+      }
+    }
+
+    function animateToPrev(){
+      if(fullIndex <= 0){ snapBack(); return; }
+      const track = $("fullTrack");
+      const w = getViewerRect().width;
+      track.classList.remove("dragging");
+      track.style.transform = `translate3d(${0}px, 0, 0)`;
+      track.addEventListener("transitionend", onDone, { once:true });
+      function onDone(){
+        fullIndex--;
+        renderFullSlides();
+      }
+    }
+
+    function snapBack(){
+      const track = $("fullTrack");
+      const w = getViewerRect().width;
+      track.classList.remove("dragging");
+      track.style.transform = `translate3d(${-w}px, 0, 0)`;
+    }
+
+    function toggleZoom(){
+      if(zoom === 1){
+        zoom = 2.2; panX = 0; panY = 0;
+      }else{
+        zoom = 1; panX = 0; panY = 0;
+      }
+      applyZoom(true);
+    }
+
+    function distance(t1, t2){
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.hypot(dx, dy);
+    }
+
+    function onTouchStart(e){
+      if(!$("fullModal").classList.contains("show")) return;
+
+      if(e.touches.length === 2){
+        pinching = true;
+        pinchStartDist = distance(e.touches[0], e.touches[1]);
+        pinchStartZoom = zoom;
+        dragging = false;
+        return;
+      }
+
+      if(e.touches.length === 1){
+        const now = Date.now();
+        // double tap
+        if(now - lastTapAt < 280){
+          lastTapAt = 0;
+          toggleZoom();
+          e.preventDefault();
+          return;
+        }
+        lastTapAt = now;
+
+        dragging = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        dx = 0; dy = 0;
+
+        $("fullTrack").classList.add("dragging");
+      }
+    }
+
+    function onTouchMove(e){
+      if(!$("fullModal").classList.contains("show")) return;
+
+      const rect = getViewerRect();
+
+      // pinch zoom
+      if(pinching && e.touches.length === 2){
+        const d = distance(e.touches[0], e.touches[1]);
+        const scale = pinchStartZoom * (d / pinchStartDist);
+        zoom = clamp(scale, 1, 4);
+        // небольшая стабилизация панорамирования
+        const maxPanX = (zoom - 1) * rect.width * 0.35;
+        const maxPanY = (zoom - 1) * rect.height * 0.35;
+        panX = clamp(panX, -maxPanX, maxPanX);
+        panY = clamp(panY, -maxPanY, maxPanY);
+        applyZoom(false);
+        e.preventDefault();
+        return;
+      }
+
+      if(!dragging || e.touches.length !== 1) return;
+
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      dx = x - startX;
+      dy = y - startY;
+
+      // if zoomed -> pan, not swipe
+      if(zoom > 1){
+        const maxPanX = (zoom - 1) * rect.width * 0.35;
+        const maxPanY = (zoom - 1) * rect.height * 0.35;
+        panX = clamp(panX + dx * 0.9, -maxPanX, maxPanX);
+        panY = clamp(panY + dy * 0.9, -maxPanY, maxPanY);
+        startX = x; startY = y;
+        applyZoom(false);
+        e.preventDefault();
+        return;
+      }
+
+      // swipe track
+      const w = rect.width;
+      const track = $("fullTrack");
+      const base = -w; // center
+      track.style.transform = `translate3d(${base + dx}px, 0, 0)`;
+      e.preventDefault();
+    }
+
+    function onTouchEnd(){
+      if(!$("fullModal").classList.contains("show")) return;
+
+      if(pinching){
+        pinching = false;
+        // если почти 1 — аккуратно вернем в 1
+        if(zoom < 1.02){
+          zoom = 1; panX = 0; panY = 0;
+          applyZoom(true);
+        }
+        return;
+      }
+
+      if(!dragging) return;
+      dragging = false;
+
+      // if zoomed, nothing to do
+      if(zoom > 1){
+        return;
+      }
+
+      const rect = getViewerRect();
+      const threshold = rect.width * 0.18;
+
+      $("fullTrack").classList.remove("dragging");
+
+      if(dx <= -threshold){
+        animateToNext();
+      }else if(dx >= threshold){
+        animateToPrev();
+      }else{
+        snapBack();
+      }
+
+      dx = 0; dy = 0;
+    }
+
+    function attachFullGestures(){
+      const viewer = $("fullViewer");
+      viewer.addEventListener("touchstart", onTouchStart, { passive:false });
+      viewer.addEventListener("touchmove", onTouchMove, { passive:false });
+      viewer.addEventListener("touchend", onTouchEnd, { passive:true });
+      viewer.addEventListener("touchcancel", onTouchEnd, { passive:true });
+    }
 
     async function downloadCurrent(){
-      const url = fullState.url;
-      if(!url){ toast("Нет файла"); return; }
+      const photo = albumPhotos[fullIndex];
+      if(!photo?.url){ toast("Нет файла"); return; }
       try{
-        // try blob download
-        const resp = await fetch(url, { mode: "cors" });
+        const resp = await fetch(photo.url, { mode: "cors" });
         const blob = await resp.blob();
         const ext = (blob.type && blob.type.includes("png")) ? "png" : "jpg";
         const name = `iventry_${Date.now()}.${ext}`;
@@ -525,23 +817,28 @@
         URL.revokeObjectURL(objectUrl);
         toast("⬇️ Скачивание началось");
       }catch(_){
-        // fallback open
-        tg.openLink(fullState.url);
+        tg.openLink(photo.url);
         toast("Открыл файл для сохранения");
       }
     }
 
-    $("fullDownload").onclick = downloadCurrent;
-
     async function deleteCurrentFull(){
-      if(!fullState.url) return;
+      const photo = albumPhotos[fullIndex];
+      if(!photo?.url) return;
+
+      if(!canDeletePhoto(photo)){
+        toast("Нет прав на удаление");
+        return;
+      }
+
+      // ✅ confirm вернули
       const ok = confirm("Удалить это фото?");
       if(!ok) return;
 
       const fd = new FormData();
       fd.append("album_code", currentAlbumCode);
       fd.append("user_id", userId);
-      fd.append("file_url", fullState.url);
+      fd.append("file_url", photo.url);
 
       const r = await fetch(`${API}/api/photo/delete`, { method:"POST", body: fd });
       const d = await r.json();
@@ -549,12 +846,19 @@
         toast(d?.detail || "Не удалось удалить");
         return;
       }
-      toast("🗑 Удалено");
-      $("fullModal").classList.remove("show");
-      await loadPhotos();
-    }
-    $("fullDelete").onclick = deleteCurrentFull;
 
+      toast("🗑 Удалено");
+      // обновим список, пересчитаем индекс
+      await loadPhotos();
+      if(albumPhotos.length === 0){
+        $("fullModal").classList.remove("show");
+        return;
+      }
+      fullIndex = clamp(fullIndex, 0, albumPhotos.length - 1);
+      renderFullSlides();
+    }
+
+    // ===== Camera / upload =====
     function galleryPicker(){
       const inp = document.createElement("input");
       inp.type = "file";
@@ -682,6 +986,7 @@
       galleryPicker();
     }
 
+    // ===== Manage / share =====
     function openManage(){
       if(!currentAlbumCode) return;
 
@@ -692,7 +997,6 @@
       $("manageModal").classList.add("show");
     }
 
-    // Share rights (2 toggles = 4 variants)
     function getShareRights(){
       const can_upload = $("shareCanUpload").checked;
       const can_delete = $("shareCanDelete").checked;
@@ -833,6 +1137,7 @@
       await loadAlbums();
     }
 
+    // ===== Members =====
     async function openMembers(){
       $("membersModal").classList.add("show");
 
@@ -871,12 +1176,16 @@
         <div class="flex flex-col items-end gap-2">
           <div class="flex items-center gap-3">
             <span class="text-[11px] opacity-70">⬆️</span>
-            <input id="mu_${m.user_id}" type="checkbox" class="sr-only" ${m.can_upload ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
-            <span class="tg-toggle tg-green"><span class="dot"></span></span>
+            <label class="flex items-center gap-2">
+              <input id="mu_${m.user_id}" type="checkbox" class="sr-only" ${m.can_upload ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
+              <span class="tg-toggle tg-green"><span class="dot"></span></span>
+            </label>
 
             <span class="text-[11px] opacity-70">🗑</span>
-            <input id="md_${m.user_id}" type="checkbox" class="sr-only" ${m.can_delete ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
-            <span class="tg-toggle tg-red"><span class="dot"></span></span>
+            <label class="flex items-center gap-2">
+              <input id="md_${m.user_id}" type="checkbox" class="sr-only" ${m.can_delete ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
+              <span class="tg-toggle tg-red"><span class="dot"></span></span>
+            </label>
           </div>
 
           <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
@@ -912,14 +1221,6 @@
         return;
       }
       $("membersList").innerHTML = (d || []).map((m,i) => memberCard(m,i)).join("") || `<div class="text-xs opacity-70">Пока никого нет</div>`;
-
-      // bind click on toggles in cards (track after input)
-      (d || []).forEach(m => {
-        const mu = document.getElementById(`mu_${m.user_id}`);
-        const md = document.getElementById(`md_${m.user_id}`);
-        if(mu && mu.nextElementSibling) mu.nextElementSibling.onclick = () => mu.click();
-        if(md && md.nextElementSibling) md.nextElementSibling.onclick = () => md.click();
-      });
     }
 
     window.updateMemberPermFromUI = async function(memberId){
@@ -1027,7 +1328,7 @@
       await loadMembers();
     }
 
-    // UI
+    // ===== UI binds =====
     $("backBtn").onclick = async () => {
       currentAlbumCode = "";
       currentAlbumName = "";
@@ -1076,15 +1377,27 @@
 
     $("topMenuBtn").onclick = () => openManage();
 
-    // close when tap outside
+    // fullscreen buttons
+    $("fullClose").onclick = () => $("fullModal").classList.remove("show");
+    $("fullModal").onclick = (e) => { if(e.target === $("fullModal")) $("fullModal").classList.remove("show"); };
+    $("fullDownload").onclick = downloadCurrent;
+    $("fullDelete").onclick = deleteCurrentFull;
+    $("fullZoom").onclick = toggleZoom;
+
+    // close when tap outside (other modals)
     for (const id of ["cameraModal","manageModal","membersModal","shareModal"]){
       $(id).onclick = (e) => { if(e.target === $(id)) $(id).classList.remove("show"); };
     }
 
-    // ✅ bind toggles in share/add boxes
-    // (input is immediately before track span, so CSS input:checked + .tg-toggle works)
-    bindToggle("shareCanUpload"); bindToggle("shareCanDelete");
-    bindToggle("canUploadChk"); bindToggle("canDeleteChk");
+    // re-render slides on resize (important for correct swipe distances)
+    window.addEventListener("resize", () => {
+      if($("fullModal").classList.contains("show")){
+        renderFullSlides();
+      }
+    });
+
+    // init gestures
+    attachFullGestures();
 
     // init
     showAlbumsScreen();
