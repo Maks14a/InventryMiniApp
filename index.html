@@ -84,45 +84,41 @@
 
     /* ✅ PHOTO GRID: 3 в ряд, квадраты, без наслоений, скролл вниз */
     #photoGrid{
-      display:grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-
-      align-content: start;
-      align-items: start;
-      justify-items: stretch;
-
-      /* чтобы низ не закрывала нижняя панель */
-      padding-bottom: 140px;
+      display:grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 10px !important;
+    
+      align-content: start !important;
+      align-items: start !important;
+      justify-items: stretch !important;
+    
+      padding: 0 8px 140px !important; /* низ под панель */
     }
 
     .photo-tile{
-      position:relative;
-      width:100%;
-      border-radius:14px;
-      overflow:hidden;
-      background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.10);
-      transition: transform var(--dur) var(--e), border-color var(--dur) var(--e), filter var(--dur) var(--e);
-      align-self: start;
-      will-change: transform;
-
-      /* оптимизация для 100+ фото */
-      content-visibility: auto;
-      contain-intrinsic-size: 150px 150px;
+      position:relative !important;
+      width:100% !important;
+      border-radius:14px !important;
+      overflow:hidden !important;
+    
+      background:rgba(255,255,255,.05) !important;
+      border:1px solid rgba(255,255,255,.10) !important;
+    
+      /* важно: чтобы плитка имела "своё место" */
+      display:block !important;
     }
     .photo-tile:hover{ border-color: rgba(255,255,255,.22); filter: brightness(1.03); }
     .photo-tile:active{ transform: scale(.985); }
 
     /* сначала пробуем aspect-ratio (сейчас стабильнее для сетки) */
-    .photo-tile{ aspect-ratio: 1 / 1; }
+    
 
     /* fallback если aspect-ratio не поддерживается */
     @supports not (aspect-ratio: 1 / 1){
       .photo-tile::before{
-        content:"";
-        display:block;
-        padding-top:100%;
+        content:"" !important;
+        display:block !important;
+        padding-top:100% !important;
       }
     }
 
@@ -555,15 +551,14 @@
 
       // ✅ для 100+ фото — без pop-анимаций (иначе может дергать)
       const animateTiles = items.length <= 60;
-
       $("photoGrid").innerHTML = items.map((p,i) => `
-        <div class="photo-tile ${animateTiles ? "pop" : ""}"
-             style="${animateTiles ? `animation-delay:${i*12}ms` : ""}"
-             onclick="openFullAtUrl('${p.url}')">
-          <img src="${p.url}" loading="lazy" decoding="async" />
-        </div>
-      `).join("");
-    }
+      <button type="button"
+              class="photo-tile"
+              onclick="openFullAtUrl('${p.url}')">
+        <img src="${p.url}" loading="lazy" decoding="async" />
+      </button>
+    `).join("");
+
 
     // ===== FULLSCREEN SWIPE + ZOOM (без анимации перехода) =====
     function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
