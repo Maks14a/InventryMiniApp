@@ -45,7 +45,6 @@
         <div class="w-24"></div>
       </div>
 
-      <!-- FIX GRID: карточки квадратные через wrapper, чтобы не было "дыр" -->
       <div id="photoGrid" class="flex-1 overflow-y-auto px-2 pb-2 grid grid-cols-3 gap-2"></div>
 
       <!-- bottom bar -->
@@ -141,11 +140,11 @@
 
       <div class="mt-4 grid gap-2">
         <button id="shareLinkBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">🔗 Создать ссылку и отправить</button>
-        <button id="sharePersonBtn" class="btn glass w-full py-3 rounded-2xl">👤 Поделиться человеком боту (добавить без ссылки)</button>
+        <button id="sharePersonBtn" class="btn glass w-full py-3 rounded-2xl">👤 Добавить человека через Telegram</button>
       </div>
 
       <div class="mt-3 text-xs opacity-70">
-        “Поделиться человеком” откроет бота, где ты выберешь пользователя — и он добавится в альбом.
+        “Добавить человека” откроет бота, где ты выберешь пользователя — он добавится в альбом.
       </div>
     </div>
   </div>
@@ -187,10 +186,8 @@
           <input id="memberInput" class="w-full px-3 py-3 rounded-2xl bg-black/40 outline-none btn"
                  placeholder="Telegram ID (195...) или @username" />
 
-          <div class="grid grid-cols-2 gap-2">
-            <button id="inviteBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">🔗 Ссылка</button>
-            <button id="pickBtn" class="btn glass w-full py-3 rounded-2xl">👤 Человек</button>
-          </div>
+          <!-- ✅ УБРАЛИ одну кнопку приглашения: оставили только "👤 Человек" -->
+          <button id="pickBtn" class="btn glass w-full py-3 rounded-2xl">👤 Добавить человека через Telegram</button>
         </div>
 
         <div class="mt-2 flex gap-2 text-xs">
@@ -207,7 +204,7 @@
         <button id="memberAddBtn" class="mt-2 btn glass w-full py-3 rounded-2xl">✅ Добавить / Обновить</button>
 
         <div class="mt-2 text-xs opacity-70">
-          ⚠️ @username может не резолвиться, если человек не открыл бота. Тогда используй “👤 Человек”.
+          ⚠️ @username может не резолвиться, если человек не открыл бота. Тогда используй “👤 Добавить человека”.
         </div>
       </div>
 
@@ -317,7 +314,6 @@
 
       const items = d.items || [];
 
-      // FIX: квадратная обёртка, чтобы не было гигантских пустот
       $("photoGrid").innerHTML = items.map(p => `
         <div class="relative w-full rounded-xl overflow-hidden bg-white/5 btn" style="aspect-ratio:1/1"
              onclick="openFull('${p.url}')">
@@ -384,10 +380,6 @@
       }
 
       try{
-        if(!navigator.mediaDevices?.getUserMedia){
-          throw new Error("getUserMedia not supported");
-        }
-
         const v = $("camVideo");
         v.muted = true;
         v.setAttribute("muted", "");
@@ -510,7 +502,7 @@
       if(Number.isNaN(n)) n = 20;
       if(n < 0) n = 20;
       if(n > 10000) n = 10000;
-      return n; // 0 = без лимита
+      return n;
     }
 
     async function createInviteLink(canUpload, canDelete, maxUses){
@@ -554,7 +546,6 @@
         return;
       }
       const rights = getShareRights();
-      // открываем бота в режим выбора пользователя
       const deep = `https://t.me/Iventry_Bot?start=pick_${currentAlbumCode}_${rights.flags}`;
       tg.openTelegramLink(deep);
       toast("Открыл бота — нажми «Выбрать человека»");
@@ -659,30 +650,6 @@
       $("membersList").innerHTML = (d || []).map(memberCard).join("") || `<div class="text-xs opacity-70">Пока никого нет</div>`;
     }
 
-    async function inviteByLinkFromMembers(){
-      // создаём ссылку на основе чекбоксов
-      if(!currentPerms.is_owner){ toast("Только владелец"); return; }
-
-      const canUpload = $("canUploadChk").checked;
-      const canDelete = $("canDeleteChk").checked;
-
-      // лимит — берём из shareMaxUses если открыт shareModal, иначе дефолт 20
-      let maxUses = 20;
-      const v = $("shareMaxUses")?.value;
-      if(v != null){
-        const n = parseInt(String(v).trim(), 10);
-        if(!Number.isNaN(n)) maxUses = n;
-      }
-
-      const link = await createInviteLink(canUpload, canDelete, maxUses);
-      if(!link) return;
-
-      tg.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Зайди в мой альбом 👇")}`
-      );
-      toast("Выбери чат и отправь ссылку");
-    }
-
     function pickPersonFromMembers(){
       if(!currentPerms.is_owner){ toast("Только владелец"); return; }
       const canUpload = $("canUploadChk").checked;
@@ -711,7 +678,7 @@
             const rr = await fetch(`${API}/api/resolve?username=${encodeURIComponent(uname)}`);
             const dd = await rr.json();
             if(!rr.ok){
-              toast("Не смог найти @username — пусть человек откроет бота, или жми «👤 Человек»");
+              toast("Не смог найти @username — пусть человек откроет бота, или жми «👤 Добавить человека»");
               return;
             }
             memberId = dd.user_id;
@@ -764,7 +731,7 @@
       await loadMembers();
     }
 
-    // ----- UI events -----
+    // UI events
     $("backBtn").onclick = async () => {
       currentAlbumCode = "";
       currentAlbumName = "";
@@ -805,7 +772,6 @@
     $("membersBtn").onclick = async () => { $("manageModal").classList.remove("show"); await openMembers(); };
     $("deleteAlbumBtn").onclick = deleteAlbum;
 
-    $("inviteBtn").onclick = inviteByLinkFromMembers;
     $("pickBtn").onclick = pickPersonFromMembers;
     $("memberAddBtn").onclick = addMember;
 
