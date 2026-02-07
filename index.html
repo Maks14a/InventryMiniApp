@@ -28,7 +28,6 @@
     }
     .btn:active{ transform: scale(.98); }
     .btn:hover{ border-color: rgba(255,255,255,.20); }
-
     .shadow-soft{box-shadow:0 10px 35px rgba(0,0,0,.35)}
 
     /* MODALS */
@@ -43,7 +42,6 @@
     }
     .modal.show{ opacity:1; pointer-events:auto; }
 
-    /* bottom sheet */
     .sheet{
       transform: translate3d(0,18px,0);
       opacity:0;
@@ -52,7 +50,6 @@
     }
     .modal.show .sheet{ transform: translate3d(0,0,0); opacity:1; }
 
-    /* center card */
     .centerCard{
       transform: scale(.965);
       opacity:0;
@@ -61,15 +58,15 @@
     }
     .modal.show .centerCard{ transform: scale(1); opacity:1; }
 
-    /* nice toggle */
+    /* toggle */
     .tg-toggle{
       width:48px; height:28px;
       border-radius:999px;
       background:rgba(255,255,255,.15);
       position:relative;
       transition: background var(--dur) var(--e);
-      flex: 0 0 auto;
       cursor:pointer;
+      flex: 0 0 auto;
     }
     .tg-toggle .dot{
       position:absolute; top:4px; left:4px;
@@ -78,23 +75,27 @@
       background:rgba(255,255,255,.85);
       transition: transform var(--dur) var(--e);
       will-change: transform;
-      pointer-events:none; /* ✅ чтобы клики шли в трек */
+      pointer-events:none;
     }
     input:checked + .tg-toggle .dot{ transform: translate3d(20px,0,0); }
     input:checked + .tg-toggle.tg-green{ background:rgba(34,197,94,.35); }
     input:checked + .tg-toggle.tg-red{ background:rgba(239,68,68,.35); }
     input:checked + .tg-toggle.tg-blue{ background:rgba(59,130,246,.35); }
 
-    /* ✅ PHOTO GRID (фикс квадратов, 3 в ряд, без растягивания) */
+    /* ✅ PHOTO GRID: 3 в ряд, квадраты, без наслоений, скролл вниз */
     #photoGrid{
       display:grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
+
       align-content: start;
-      align-items: start;     /* ✅ чтобы НЕ тянуло элементы по Y */
+      align-items: start;
       justify-items: stretch;
-      padding-bottom: 8px;
+
+      /* чтобы низ не закрывала нижняя панель */
+      padding-bottom: 140px;
     }
+
     .photo-tile{
       position:relative;
       width:100%;
@@ -103,23 +104,35 @@
       background:rgba(255,255,255,.05);
       border:1px solid rgba(255,255,255,.10);
       transition: transform var(--dur) var(--e), border-color var(--dur) var(--e), filter var(--dur) var(--e);
-      align-self: start;      /* ✅ */
+      align-self: start;
       will-change: transform;
+
+      /* оптимизация для 100+ фото */
+      content-visibility: auto;
+      contain-intrinsic-size: 150px 150px;
     }
     .photo-tile:hover{ border-color: rgba(255,255,255,.22); filter: brightness(1.03); }
     .photo-tile:active{ transform: scale(.985); }
 
-    /* ✅ квадрат через padding (без aspect-ratio бага) */
-    .photo-tile::before{
-      content:"";
-      display:block;
-      padding-top:100%;
+    /* сначала пробуем aspect-ratio (сейчас стабильнее для сетки) */
+    .photo-tile{ aspect-ratio: 1 / 1; }
+
+    /* fallback если aspect-ratio не поддерживается */
+    @supports not (aspect-ratio: 1 / 1){
+      .photo-tile::before{
+        content:"";
+        display:block;
+        padding-top:100%;
+      }
     }
+
     .photo-tile img{
       position:absolute; inset:0;
       width:100%; height:100%;
       object-fit: cover;
       transform: translate3d(0,0,0);
+      -webkit-user-drag:none;
+      user-select:none;
     }
 
     @keyframes popIn{
@@ -149,16 +162,16 @@
       overflow:hidden;
       border-radius: 16px;
       background: rgba(0,0,0,.35);
-      touch-action: none; /* ✅ для свайпа/пинча */
+      touch-action: none;
     }
 
+    /* ✅ ВАЖНО: без анимации на перелистывании (только drag пальцем) */
     #fullTrack{
       display:flex;
       transform: translate3d(0,0,0);
-      transition: transform var(--dur2) var(--e);
+      transition: none !important; /* <-- убрали "доезд" */
       will-change: transform;
     }
-    #fullTrack.dragging{ transition: none; }
 
     .fullSlide{
       min-width:100%;
@@ -215,6 +228,7 @@
         <div class="w-24"></div>
       </div>
 
+      <!-- ✅ скролл вниз -->
       <div id="photoGrid" class="flex-1 overflow-y-auto px-2"></div>
 
       <!-- bottom -->
@@ -241,9 +255,7 @@
       </div>
 
       <div id="fullViewer" class="w-full">
-        <div id="fullTrack">
-          <!-- 3 slides (prev / current / next) injected -->
-        </div>
+        <div id="fullTrack"></div>
       </div>
 
       <div class="mt-2 text-xs opacity-70 px-1">
@@ -274,7 +286,7 @@
 
       <canvas id="camCanvas" class="hidden"></canvas>
       <div class="mt-2 text-xs opacity-70">
-        Если чёрный экран — нажми 🔄 (смена камеры) или «Фолбэк».
+        Если чёрный экран — нажми 🔄 или «Фолбэк».
       </div>
     </div>
   </div>
@@ -290,25 +302,25 @@
       <div class="mt-3 text-sm font-semibold">Права по ссылке (просмотр всегда есть)</div>
 
       <div class="mt-2 grid gap-2">
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
+        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
           <div>
             <div class="font-semibold">⬆️ Загрузка</div>
             <div class="text-xs opacity-70">Можно добавлять фото</div>
           </div>
           <div class="flex items-center gap-3">
             <input id="shareCanUpload" type="checkbox" class="sr-only" checked>
-            <span class="tg-toggle tg-green" aria-label="toggle upload"><span class="dot"></span></span>
+            <span class="tg-toggle tg-green"><span class="dot"></span></span>
           </div>
         </label>
 
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
+        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
           <div>
             <div class="font-semibold">🗑 Удаление</div>
-            <div class="text-xs opacity-70">Можно удалять фото (как модератор)</div>
+            <div class="text-xs opacity-70">Можно удалять фото</div>
           </div>
           <div class="flex items-center gap-3">
             <input id="shareCanDelete" type="checkbox" class="sr-only">
-            <span class="tg-toggle tg-red" aria-label="toggle delete"><span class="dot"></span></span>
+            <span class="tg-toggle tg-red"><span class="dot"></span></span>
           </div>
         </label>
       </div>
@@ -373,7 +385,7 @@
         </div>
 
         <div class="mt-3 grid gap-2">
-          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
+          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
             <div>
               <div class="font-semibold text-sm">⬆️ Загрузка</div>
               <div class="text-xs opacity-70">Разрешить добавлять фото</div>
@@ -384,7 +396,7 @@
             </div>
           </label>
 
-          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
+          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
             <div>
               <div class="font-semibold text-sm">🗑 Удаление</div>
               <div class="text-xs opacity-70">Разрешить удалять фото</div>
@@ -444,7 +456,6 @@
     let startX = 0;
     let startY = 0;
     let dx = 0;
-    let dy = 0;
     let lastTapAt = 0;
 
     let pinching = false;
@@ -542,26 +553,23 @@
       const items = d.items || [];
       albumPhotos = items.map(p => ({ url: p.url, uploaded_by: p.uploaded_by || 0 }));
 
+      // ✅ для 100+ фото — без pop-анимаций (иначе может дергать)
+      const animateTiles = items.length <= 60;
+
       $("photoGrid").innerHTML = items.map((p,i) => `
-        <div class="photo-tile pop"
-             style="animation-delay:${i*15}ms"
-             onclick="openFullByUrl('${p.url}')">
-          <img src="${p.url}" loading="lazy" />
+        <div class="photo-tile ${animateTiles ? "pop" : ""}"
+             style="${animateTiles ? `animation-delay:${i*12}ms` : ""}"
+             onclick="openFullAtUrl('${p.url}')">
+          <img src="${p.url}" loading="lazy" decoding="async" />
         </div>
       `).join("");
     }
 
-    // ===== FULLSCREEN SWIPE + ZOOM =====
-
+    // ===== FULLSCREEN SWIPE + ZOOM (без анимации перехода) =====
     function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
     function canDeletePhoto(photo){
       return !!(currentPerms.is_owner || currentPerms.can_delete || (photo?.uploaded_by && photo.uploaded_by === userId));
-    }
-
-    function resetZoom(animated=true){
-      zoom = 1; panX = 0; panY = 0;
-      applyZoom(animated);
     }
 
     function getViewerRect(){
@@ -577,14 +585,17 @@
       if(!img) return;
       img.style.transition = animated ? `transform var(--dur2) var(--e)` : "none";
       img.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`;
-      // remove transition after a tick to keep panning smooth
       if(animated){
         setTimeout(()=> { if(img) img.style.transition = ""; }, 300);
       }
     }
 
+    function resetZoom(animated=true){
+      zoom = 1; panX = 0; panY = 0;
+      applyZoom(animated);
+    }
+
     function renderFullSlides(){
-      // 3-slides virtual carousel: prev / cur / next
       const prev = albumPhotos[fullIndex - 1] || null;
       const cur  = albumPhotos[fullIndex] || null;
       const next = albumPhotos[fullIndex + 1] || null;
@@ -602,16 +613,13 @@
         </div>
       `;
 
-      // place track so that "cur" is visible
       const w = getViewerRect().width;
-      track.classList.remove("dragging");
+      // ✅ ставим "cur" сразу (без анимации)
       track.style.transform = `translate3d(${-w}px, 0, 0)`;
 
-      // buttons visibility
       const photo = albumPhotos[fullIndex] || null;
       $("fullDelete").classList.toggle("hidden", !canDeletePhoto(photo));
 
-      // reset zoom each slide (приятнее + меньше багов)
       resetZoom(false);
     }
 
@@ -622,42 +630,9 @@
       $("fullModal").classList.add("show");
     }
 
-    window.openFullByUrl = function(url){
+    window.openFullAtUrl = function(url){
       const idx = albumPhotos.findIndex(p => p.url === url);
       openFullAt(idx >= 0 ? idx : 0);
-    }
-
-    function animateToNext(){
-      if(fullIndex >= albumPhotos.length - 1){ snapBack(); return; }
-      const track = $("fullTrack");
-      const w = getViewerRect().width;
-      track.classList.remove("dragging");
-      track.style.transform = `translate3d(${-2*w}px, 0, 0)`;
-      track.addEventListener("transitionend", onDone, { once:true });
-      function onDone(){
-        fullIndex++;
-        renderFullSlides();
-      }
-    }
-
-    function animateToPrev(){
-      if(fullIndex <= 0){ snapBack(); return; }
-      const track = $("fullTrack");
-      const w = getViewerRect().width;
-      track.classList.remove("dragging");
-      track.style.transform = `translate3d(${0}px, 0, 0)`;
-      track.addEventListener("transitionend", onDone, { once:true });
-      function onDone(){
-        fullIndex--;
-        renderFullSlides();
-      }
-    }
-
-    function snapBack(){
-      const track = $("fullTrack");
-      const w = getViewerRect().width;
-      track.classList.remove("dragging");
-      track.style.transform = `translate3d(${-w}px, 0, 0)`;
     }
 
     function toggleZoom(){
@@ -688,7 +663,6 @@
 
       if(e.touches.length === 1){
         const now = Date.now();
-        // double tap
         if(now - lastTapAt < 280){
           lastTapAt = 0;
           toggleZoom();
@@ -700,9 +674,7 @@
         dragging = true;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
-        dx = 0; dy = 0;
-
-        $("fullTrack").classList.add("dragging");
+        dx = 0;
       }
     }
 
@@ -711,16 +683,16 @@
 
       const rect = getViewerRect();
 
-      // pinch zoom
       if(pinching && e.touches.length === 2){
         const d = distance(e.touches[0], e.touches[1]);
         const scale = pinchStartZoom * (d / pinchStartDist);
         zoom = clamp(scale, 1, 4);
-        // небольшая стабилизация панорамирования
+
         const maxPanX = (zoom - 1) * rect.width * 0.35;
         const maxPanY = (zoom - 1) * rect.height * 0.35;
         panX = clamp(panX, -maxPanX, maxPanX);
         panY = clamp(panY, -maxPanY, maxPanY);
+
         applyZoom(false);
         e.preventDefault();
         return;
@@ -731,25 +703,23 @@
       const x = e.touches[0].clientX;
       const y = e.touches[0].clientY;
       dx = x - startX;
-      dy = y - startY;
 
-      // if zoomed -> pan, not swipe
+      // zoomed -> панорамирование
       if(zoom > 1){
-        const maxPanX = (zoom - 1) * rect.width * 0.35;
-        const maxPanY = (zoom - 1) * rect.height * 0.35;
-        panX = clamp(panX + dx * 0.9, -maxPanX, maxPanX);
-        panY = clamp(panY + dy * 0.9, -maxPanY, maxPanY);
+        const mx = (zoom - 1) * rect.width * 0.35;
+        const my = (zoom - 1) * rect.height * 0.35;
+        panX = clamp(panX + (x - startX) * 0.9, -mx, mx);
+        panY = clamp(panY + (y - startY) * 0.9, -my, my);
         startX = x; startY = y;
         applyZoom(false);
         e.preventDefault();
         return;
       }
 
-      // swipe track
+      // swipe track while dragging
       const w = rect.width;
-      const track = $("fullTrack");
-      const base = -w; // center
-      track.style.transform = `translate3d(${base + dx}px, 0, 0)`;
+      const base = -w;
+      $("fullTrack").style.transform = `translate3d(${base + dx}px, 0, 0)`;
       e.preventDefault();
     }
 
@@ -758,7 +728,6 @@
 
       if(pinching){
         pinching = false;
-        // если почти 1 — аккуратно вернем в 1
         if(zoom < 1.02){
           zoom = 1; panX = 0; panY = 0;
           applyZoom(true);
@@ -769,25 +738,19 @@
       if(!dragging) return;
       dragging = false;
 
-      // if zoomed, nothing to do
-      if(zoom > 1){
-        return;
-      }
+      if(zoom > 1) return;
 
       const rect = getViewerRect();
       const threshold = rect.width * 0.18;
 
-      $("fullTrack").classList.remove("dragging");
-
-      if(dx <= -threshold){
-        animateToNext();
-      }else if(dx >= threshold){
-        animateToPrev();
-      }else{
-        snapBack();
+      // ✅ ВАЖНО: без анимации — просто меняем индекс и ререндерим
+      if(dx <= -threshold && fullIndex < albumPhotos.length - 1){
+        fullIndex++;
+      }else if(dx >= threshold && fullIndex > 0){
+        fullIndex--;
       }
-
-      dx = 0; dy = 0;
+      renderFullSlides(); // вернет в центр сразу
+      dx = 0;
     }
 
     function attachFullGestures(){
@@ -831,7 +794,6 @@
         return;
       }
 
-      // ✅ confirm вернули
       const ok = confirm("Удалить это фото?");
       if(!ok) return;
 
@@ -848,7 +810,6 @@
       }
 
       toast("🗑 Удалено");
-      // обновим список, пересчитаем индекс
       await loadPhotos();
       if(albumPhotos.length === 0){
         $("fullModal").classList.remove("show");
@@ -858,7 +819,7 @@
       renderFullSlides();
     }
 
-    // ===== Camera / upload =====
+    // ===== Upload / Camera =====
     function galleryPicker(){
       const inp = document.createElement("input");
       inp.type = "file";
@@ -1137,7 +1098,7 @@
       await loadAlbums();
     }
 
-    // ===== Members =====
+    // ===== Members (оставлено как было ранее по функционалу) =====
     async function openMembers(){
       $("membersModal").classList.add("show");
 
@@ -1176,13 +1137,13 @@
         <div class="flex flex-col items-end gap-2">
           <div class="flex items-center gap-3">
             <span class="text-[11px] opacity-70">⬆️</span>
-            <label class="flex items-center gap-2">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
               <input id="mu_${m.user_id}" type="checkbox" class="sr-only" ${m.can_upload ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
               <span class="tg-toggle tg-green"><span class="dot"></span></span>
             </label>
 
             <span class="text-[11px] opacity-70">🗑</span>
-            <label class="flex items-center gap-2">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
               <input id="md_${m.user_id}" type="checkbox" class="sr-only" ${m.can_delete ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
               <span class="tg-toggle tg-red"><span class="dot"></span></span>
             </label>
@@ -1199,7 +1160,7 @@
 
       return `
         <div class="glass rounded-2xl p-3 btn flex items-center justify-between gap-3 pop"
-             style="animation-delay:${i*15}ms">
+             style="animation-delay:${i*10}ms">
           <div class="flex items-center gap-3 min-w-0">
             ${avatar}
             <div class="min-w-0">
@@ -1389,17 +1350,14 @@
       $(id).onclick = (e) => { if(e.target === $(id)) $(id).classList.remove("show"); };
     }
 
-    // re-render slides on resize (important for correct swipe distances)
     window.addEventListener("resize", () => {
       if($("fullModal").classList.contains("show")){
         renderFullSlides();
       }
     });
 
-    // init gestures
     attachFullGestures();
 
-    // init
     showAlbumsScreen();
     loadAlbums();
   </script>
