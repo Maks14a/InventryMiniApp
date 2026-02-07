@@ -18,6 +18,7 @@
 <body class="h-screen overflow-hidden">
   <div class="h-full flex flex-col">
 
+    <!-- Top -->
     <div class="px-4 pt-4 pb-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -34,13 +35,13 @@
       </div>
     </div>
 
-    <!-- Albums screen -->
+    <!-- Albums -->
     <div id="screenAlbums" class="flex-1 overflow-y-auto px-4 pb-24">
       <div class="mt-2 text-sm opacity-70">Твои альбомы и расшаренные</div>
       <div id="albumsList" class="mt-4 grid gap-3"></div>
     </div>
 
-    <!-- Album screen -->
+    <!-- Album -->
     <div id="screenAlbum" class="hidden flex-1 flex flex-col overflow-hidden">
       <div class="px-4 pb-3 flex items-center justify-between">
         <button id="backBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">← Назад</button>
@@ -48,9 +49,10 @@
         <div class="w-24"></div>
       </div>
 
+      <!-- ✅ FIX: квадрат через padding-bottom, чтобы не наслаивалось -->
       <div id="photoGrid" class="flex-1 overflow-y-auto px-2 pb-2 grid grid-cols-3 gap-2"></div>
 
-      <!-- bottom bar -->
+      <!-- bottom -->
       <div class="glass p-4 rounded-t-3xl shadow-soft">
         <div class="flex items-center justify-between gap-3">
           <button id="galleryBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">🖼 Галерея</button>
@@ -73,7 +75,7 @@
     </div>
   </div>
 
-  <!-- Camera modal -->
+  <!-- Camera -->
   <div id="cameraModal" class="modal items-center justify-center p-4">
     <div class="w-full max-w-xl glass rounded-3xl p-4 shadow-soft">
       <div class="flex items-center justify-between">
@@ -95,12 +97,12 @@
 
       <canvas id="camCanvas" class="hidden"></canvas>
       <div class="mt-2 text-xs opacity-70">
-        Если видишь чёрный экран — нажми 🔄 (смена камеры) или «Фолбэк».
+        Если чёрный экран — нажми 🔄 (смена камеры) или «Фолбэк».
       </div>
     </div>
   </div>
 
-  <!-- Share modal -->
+  <!-- Share -->
   <div id="shareModal" class="modal items-end justify-center p-0">
     <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
       <div class="flex items-center justify-between">
@@ -108,29 +110,35 @@
         <button id="shareClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
       </div>
 
-      <div class="mt-3 text-sm font-semibold">Права для тех, кто зайдёт</div>
+      <div class="mt-3 text-sm font-semibold">Права по ссылке (просмотр всегда есть)</div>
+
+      <!-- ✅ два тумблера = 4 варианта -->
       <div class="mt-2 grid gap-2">
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center gap-3">
-          <input type="radio" name="shareRights" value="view" checked>
+        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
           <div>
-            <div class="font-semibold">👀 Только просмотр</div>
-            <div class="text-xs opacity-70">Без загрузки и удаления</div>
-          </div>
-        </label>
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center gap-3">
-          <input type="radio" name="shareRights" value="upload">
-          <div>
-            <div class="font-semibold">✅ Просмотр + загрузка</div>
+            <div class="font-semibold">⬆️ Загрузка</div>
             <div class="text-xs opacity-70">Можно добавлять фото</div>
           </div>
-        </label>
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center gap-3">
-          <input type="radio" name="shareRights" value="full">
-          <div>
-            <div class="font-semibold">🗑 Загрузка + удаление</div>
-            <div class="text-xs opacity-70">Можно удалять любые фото</div>
+          <input id="shareCanUpload" type="checkbox" class="sr-only peer" checked>
+          <div class="w-12 h-7 rounded-full bg-white/15 relative transition peer-checked:bg-green-500/35">
+            <div class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/80 transition peer-checked:translate-x-5"></div>
           </div>
         </label>
+
+        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
+          <div>
+            <div class="font-semibold">🗑 Удаление</div>
+            <div class="text-xs opacity-70">Можно удалять фото (как модератор)</div>
+          </div>
+          <input id="shareCanDelete" type="checkbox" class="sr-only peer">
+          <div class="w-12 h-7 rounded-full bg-white/15 relative transition peer-checked:bg-red-500/35">
+            <div class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/80 transition peer-checked:translate-x-5"></div>
+          </div>
+        </label>
+      </div>
+
+      <div class="mt-3 text-xs opacity-70">
+        Получается 4 варианта: (оба OFF), (загрузка ON), (удаление ON), (оба ON).
       </div>
 
       <div class="mt-4 text-sm font-semibold">Сколько людей смогут зайти</div>
@@ -148,7 +156,7 @@
     </div>
   </div>
 
-  <!-- Manage modal -->
+  <!-- Settings -->
   <div id="manageModal" class="modal items-end justify-center p-0">
     <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
       <div class="flex items-center justify-between">
@@ -169,7 +177,7 @@
     </div>
   </div>
 
-  <!-- Members modal -->
+  <!-- Members -->
   <div id="membersModal" class="modal items-end justify-center p-0">
     <div class="w-full rounded-t-3xl glass p-4 shadow-soft max-h-[80vh] overflow-y-auto">
       <div class="flex items-center justify-between">
@@ -183,32 +191,45 @@
         🚪 Выйти из альбома
       </button>
 
-      <!-- add box (только владельцу) -->
+      <!-- Add / Update by ID (only owner) -->
       <div id="membersAddBox" class="mt-3 p-3 rounded-2xl bg-white/5">
         <div class="text-sm font-semibold mb-2">Добавить/обновить участника</div>
 
         <div class="grid gap-2">
           <input id="memberInput" class="w-full px-3 py-3 rounded-2xl bg-black/40 outline-none btn"
-                 placeholder="Telegram ID (195...) или @username" />
-
+                 placeholder="Telegram ID (например 112) или @username" />
           <button id="pickBtn" class="btn glass w-full py-3 rounded-2xl">👤 Добавить человека через Telegram</button>
         </div>
 
-        <div class="mt-2 flex gap-2 text-xs">
-          <label class="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-2xl">
-            <input id="canUploadChk" type="checkbox" checked>
-            <span>может загружать</span>
+        <!-- ✅ красивые тумблеры -->
+        <div class="mt-3 grid gap-2">
+          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-sm">⬆️ Загрузка</div>
+              <div class="text-xs opacity-70">Разрешить добавлять фото</div>
+            </div>
+            <input id="canUploadChk" type="checkbox" class="sr-only peer" checked>
+            <div class="w-12 h-7 rounded-full bg-white/15 relative transition peer-checked:bg-green-500/35">
+              <div class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/80 transition peer-checked:translate-x-5"></div>
+            </div>
           </label>
-          <label class="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-2xl">
-            <input id="canDeleteChk" type="checkbox">
-            <span>может удалять</span>
+
+          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-sm">🗑 Удаление</div>
+              <div class="text-xs opacity-70">Разрешить удалять фото</div>
+            </div>
+            <input id="canDeleteChk" type="checkbox" class="sr-only peer">
+            <div class="w-12 h-7 rounded-full bg-white/15 relative transition peer-checked:bg-red-500/35">
+              <div class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/80 transition peer-checked:translate-x-5"></div>
+            </div>
           </label>
         </div>
 
         <button id="memberAddBtn" class="mt-2 btn glass w-full py-3 rounded-2xl">✅ Добавить / Обновить</button>
 
         <div class="mt-2 text-xs opacity-70">
-          ⚠️ @username может не резолвиться, если человек не открыл бота. Тогда используй “👤 Добавить человека”.
+          @username может не резолвиться, если человек не открывал бота. Тогда используй “👤 Добавить человека”.
         </div>
       </div>
 
@@ -273,8 +294,8 @@
       if(isGuest){
         $("albumsList").innerHTML = `
           <div class="glass rounded-2xl p-4 btn">
-            <div class="font-semibold">Открой мини-апп в Telegram</div>
-            <div class="text-xs opacity-70 mt-1">Иначе нельзя определить пользователя (гость: 112).</div>
+            <div class="font-semibold">Гостевой режим (ID: 112)</div>
+            <div class="text-xs opacity-70 mt-1">Для списка альбомов открой мини-апп в Telegram. Но 112 можно добавлять в альбомы для тестов.</div>
           </div>`;
         return;
       }
@@ -328,9 +349,10 @@
 
       const items = d.items || [];
 
+      // ✅ FIX: квадратная сетка без aspect-ratio
       $("photoGrid").innerHTML = items.map(p => `
-        <div class="relative w-full rounded-xl overflow-hidden bg-white/5 btn" style="aspect-ratio:1/1"
-             onclick="openFull('${p.url}')">
+        <div class="relative w-full rounded-xl overflow-hidden bg-white/5 btn" onclick="openFull('${p.url}')">
+          <div class="pb-[100%]"></div>
           <img src="${p.url}" class="absolute inset-0 w-full h-full object-cover" loading="lazy">
           ${renderDeleteBtn(p.url, p.uploaded_by)}
         </div>
@@ -500,7 +522,6 @@
     function openManage(){
       if(!currentAlbumCode) return;
 
-      // владелец — всё видно; участник — только участники + выйти
       $("renameBtn").style.display = currentPerms.is_owner ? "block" : "none";
       $("deleteAlbumBtn").style.display = currentPerms.is_owner ? "block" : "none";
       $("leaveBtn").style.display = currentPerms.is_owner ? "none" : "block";
@@ -508,11 +529,12 @@
       $("manageModal").classList.add("show");
     }
 
+    // ✅ новые права: два тумблера (4 варианта)
     function getShareRights(){
-      const v = document.querySelector('input[name="shareRights"]:checked')?.value || "view";
-      if(v === "view")  return {can_upload:false, can_delete:false, flags:"00"};
-      if(v === "upload")return {can_upload:true,  can_delete:false, flags:"10"};
-      return              {can_upload:true,  can_delete:true,  flags:"11"};
+      const can_upload = $("shareCanUpload").checked;
+      const can_delete = $("shareCanDelete").checked;
+      const flags = (can_upload ? "1" : "0") + (can_delete ? "1" : "0");
+      return { can_upload, can_delete, flags };
     }
 
     function getShareMaxUses(){
@@ -652,7 +674,7 @@
       $("membersModal").classList.add("show");
 
       if(currentPerms.is_owner){
-        $("membersOwnerHint").textContent = "Ты владелец — можешь менять права и удалять участников.";
+        $("membersOwnerHint").textContent = "Ты владелец — можешь менять права прямо в карточках и удалять участников.";
         $("membersAddBox").style.display = "block";
         $("leaveBtnInside").classList.add("hidden");
       }else{
@@ -664,53 +686,72 @@
       await loadMembers();
     }
 
-    function rightsToSelectValue(m){
-      if(m.can_upload && m.can_delete) return "full";
-      if(m.can_upload) return "upload";
-      return "view";
-    }
-
     function memberCard(m){
       const hasProfile = !!(m.username || m.first_name || m.last_name);
       const displayName = hasProfile
         ? ([m.first_name, m.last_name].filter(Boolean).join(" ").trim() || ("@" + (m.username||"")))
         : "Гость";
-      const uname = m.username ? "@" + m.username : (hasProfile ? "—" : "—");
+      const uname = m.username ? "@" + m.username : "—";
+
+      // ✅ как просил: если профиля нет — показываем 112
       const displayId = hasProfile ? m.user_id : 112;
 
       const initial = (m.first_name || m.username || "G").toString().charAt(0).toUpperCase();
-      const permsText = (m.can_upload ? "✅ загрузка" : "👀 просмотр") + (m.can_delete ? " • 🗑 удаление" : "");
 
+      const permsText =
+        "👀 просмотр" +
+        (m.can_upload ? " • ⬆️ загрузка" : "") +
+        (m.can_delete ? " • 🗑 удаление" : "");
+
+      // ✅ тумблеры прямо в карточке (только для владельца)
       const rightControls = currentPerms.is_owner ? `
-        <select class="bg-black/40 btn px-2 py-2 rounded-2xl text-xs"
-                onchange="updateMemberPerm(${m.user_id}, this.value)">
-          <option value="view" ${rightsToSelectValue(m)==="view"?"selected":""}>👀 просмотр</option>
-          <option value="upload" ${rightsToSelectValue(m)==="upload"?"selected":""}>✅ загрузка</option>
-          <option value="full" ${rightsToSelectValue(m)==="full"?"selected":""}>🗑 удаление</option>
-        </select>
-        <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
-                onclick="removeMember(${m.user_id})">Удалить</button>
+        <div class="flex flex-col items-end gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] opacity-70">⬆️</span>
+            <input id="mu_${m.user_id}" type="checkbox" class="sr-only peer" ${m.can_upload ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
+            <div class="w-10 h-6 rounded-full bg-white/15 relative transition peer-checked:bg-green-500/35 cursor-pointer"
+                 onclick="document.getElementById('mu_${m.user_id}').click()">
+              <div class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white/80 transition peer-checked:translate-x-4"></div>
+            </div>
+
+            <span class="text-[11px] opacity-70 ml-2">🗑</span>
+            <input id="md_${m.user_id}" type="checkbox" class="sr-only peer2" ${m.can_delete ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
+            <div class="w-10 h-6 rounded-full bg-white/15 relative transition cursor-pointer"
+                 onclick="document.getElementById('md_${m.user_id}').click()"
+                 style="${m.can_delete ? 'background: rgba(239,68,68,.35);' : ''}">
+              <div class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white/80 transition"
+                   style="${m.can_delete ? 'transform: translateX(16px);' : ''}"></div>
+            </div>
+          </div>
+
+          <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
+                  onclick="removeMember(${m.user_id})">Удалить</button>
+        </div>
       ` : `
-        <div class="text-[11px] opacity-80">${escapeHtml(permsText)}</div>
+        <div class="text-[11px] opacity-80 text-right">${escapeHtml(permsText)}</div>
+      `;
+
+      // аватар через API (если нет — буква)
+      const avatar = `
+        <div class="relative w-11 h-11 rounded-2xl bg-white/10 overflow-hidden shrink-0">
+          <span class="fallback absolute inset-0 flex items-center justify-center font-bold">${escapeHtml(initial)}</span>
+          <img src="${API}/api/avatar/${m.user_id}" class="absolute inset-0 w-full h-full object-cover"
+               onload="this.parentElement.querySelector('.fallback').style.display='none';"
+               onerror="this.style.display='none'; this.parentElement.querySelector('.fallback').style.display='flex';" />
+        </div>
       `;
 
       return `
         <div class="glass rounded-2xl p-3 btn flex items-center justify-between gap-3">
           <div class="flex items-center gap-3 min-w-0">
-            <div class="relative w-11 h-11 rounded-2xl bg-white/10 overflow-hidden shrink-0 flex items-center justify-center font-bold">
-              <span class="fallback">${escapeHtml(initial)}</span>
-              <img src="${API}/api/avatar/${m.user_id}" class="absolute inset-0 w-full h-full object-cover"
-                   onerror="this.style.display='none'; this.parentElement.querySelector('.fallback').style.display='flex';" />
-            </div>
+            ${avatar}
             <div class="min-w-0">
               <div class="font-semibold truncate">${escapeHtml(displayName || "Гость")}</div>
               <div class="text-xs opacity-70">${escapeHtml(uname)}</div>
               <div class="text-xs opacity-70">ID: ${escapeHtml(String(displayId))}</div>
             </div>
           </div>
-          <div class="flex flex-col items-end gap-2 shrink-0">
-            ${rightControls}
-          </div>
+          ${rightControls}
         </div>
       `;
     }
@@ -722,15 +763,37 @@
         toast(d?.detail || "Не удалось получить список");
         return;
       }
+
+      // маленький хак: чтобы красный тумблер (delete) отображался корректно
       $("membersList").innerHTML = (d || []).map(memberCard).join("") || `<div class="text-xs opacity-70">Пока никого нет</div>`;
+
+      // подправим визуал delete-тумблеров (peer2 без tailwind)
+      (d || []).forEach(m => {
+        const md = document.getElementById(`md_${m.user_id}`);
+        if(md){
+          const pill = md.nextElementSibling;
+          const dot = pill?.querySelector("div");
+          const apply = () => {
+            if(md.checked){
+              pill.style.background = "rgba(239,68,68,.35)";
+              dot.style.transform = "translateX(16px)";
+            }else{
+              pill.style.background = "rgba(255,255,255,.15)";
+              dot.style.transform = "translateX(0px)";
+            }
+          };
+          apply();
+          md.addEventListener("change", apply);
+        }
+      });
     }
 
-    window.updateMemberPerm = async function(memberId, mode){
+    // ✅ обновление прав из карточки (4 варианта)
+    window.updateMemberPermFromUI = async function(memberId){
       if(!currentPerms.is_owner){ toast("Только владелец"); return; }
 
-      let canUpload = false, canDelete = false;
-      if(mode === "upload"){ canUpload = true; }
-      if(mode === "full"){ canUpload = true; canDelete = true; }
+      const canUpload = !!document.getElementById(`mu_${memberId}`)?.checked;
+      const canDelete = !!document.getElementById(`md_${memberId}`)?.checked;
 
       const fd = new FormData();
       fd.append("album_code", currentAlbumCode);
@@ -743,10 +806,10 @@
       const d = await r.json();
       if(!r.ok){
         toast(d?.detail || "Не удалось обновить права");
+        await loadMembers();
         return;
       }
       toast("✅ Права обновлены");
-      await loadMembers();
     }
 
     function pickPersonFromMembers(){
@@ -832,7 +895,7 @@
       await loadMembers();
     }
 
-    // ---- UI ----
+    // UI
     $("backBtn").onclick = async () => {
       currentAlbumCode = "";
       currentAlbumName = "";
@@ -885,7 +948,6 @@
       $(id).onclick = (e) => { if(e.target === $(id)) $(id).classList.remove("show"); };
     }
 
-    // init
     showAlbumsScreen();
     loadAlbums();
   </script>
