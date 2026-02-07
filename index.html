@@ -5,13 +5,128 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
+    :root{
+      --dur: 200ms;
+      --dur2: 260ms;
+      --e: cubic-bezier(.2,.8,.2,1);
+    }
+    *{ -webkit-tap-highlight-color: transparent; }
     body{margin:0;background:#0b0b0f;color:#fff}
+
     .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(16px)}
-    .btn{border:1px solid rgba(255,255,255,.12)}
+    .btn{
+      border:1px solid rgba(255,255,255,.12);
+      transition: transform var(--dur) var(--e), background var(--dur) var(--e), border-color var(--dur) var(--e), opacity var(--dur) var(--e);
+      will-change: transform, opacity;
+    }
+    .btn:active{ transform: scale(.98); }
+    .btn:hover{ border-color: rgba(255,255,255,.20); }
+
     .shadow-soft{box-shadow:0 10px 35px rgba(0,0,0,.35)}
-    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999}
-    .modal.show{display:flex}
+
+    /* ✅ MODALS with smooth animations */
+    .modal{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.65);
+      z-index:9999;
+      display:flex;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity var(--dur2) var(--e);
+    }
+    .modal.show{ opacity:1; pointer-events:auto; }
+
+    /* bottom sheet */
+    .sheet{
+      transform: translateY(18px);
+      opacity:0;
+      transition: transform var(--dur2) var(--e), opacity var(--dur2) var(--e);
+      will-change: transform, opacity;
+    }
+    .modal.show .sheet{ transform: translateY(0); opacity:1; }
+
+    /* center card (full image / camera) */
+    .centerCard{
+      transform: scale(.96);
+      opacity:0;
+      transition: transform var(--dur2) var(--e), opacity var(--dur2) var(--e);
+      will-change: transform, opacity;
+    }
+    .modal.show .centerCard{ transform: scale(1); opacity:1; }
+
+    /* ✅ nice toggle */
+    .tg-toggle{
+      width:48px; height:28px;
+      border-radius:999px;
+      background:rgba(255,255,255,.15);
+      position:relative;
+      transition: background var(--dur) var(--e);
+      flex: 0 0 auto;
+    }
+    .tg-toggle .dot{
+      position:absolute; top:4px; left:4px;
+      width:20px; height:20px;
+      border-radius:999px;
+      background:rgba(255,255,255,.85);
+      transition: transform var(--dur) var(--e);
+      will-change: transform;
+    }
+    input:checked + .tg-toggle .dot{ transform: translateX(20px); }
+    input:checked + .tg-toggle.tg-green{ background:rgba(34,197,94,.35); }
+    input:checked + .tg-toggle.tg-red{ background:rgba(239,68,68,.35); }
+    input:checked + .tg-toggle.tg-blue{ background:rgba(59,130,246,.35); }
+
+    /* ✅ photo tiles (no aspect-ratio bugs) */
+    #photoGrid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .photo-tile{
+      position:relative;
+      width:100%;
+      border-radius:14px;
+      overflow:hidden;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      transition: transform var(--dur) var(--e), border-color var(--dur) var(--e);
+    }
+    .photo-tile:hover{ border-color: rgba(255,255,255,.22); }
+    .photo-tile:active{ transform: scale(.98); }
+    .photo-tile::before{
+      content:"";
+      display:block;
+      padding-top:100%; /* ✅ always square */
+    }
+    .photo-tile img{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit: cover;
+    }
+
+    /* ✅ small "pop" animation for inserted cards */
+    @keyframes popIn{
+      from{ opacity:0; transform: translateY(10px); }
+      to{ opacity:1; transform: translateY(0); }
+    }
+    .pop{ animation: popIn var(--dur2) var(--e) both; }
+
+    /* full image action bar */
+    .fullbar{
+      position:absolute;
+      top:12px; left:12px; right:12px;
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      z-index:2;
+    }
+    .fullbar .mini{
+      background: rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(12px);
+    }
   </style>
 </head>
 
@@ -49,11 +164,10 @@
         <div class="w-24"></div>
       </div>
 
-      <!-- ✅ FIX: квадрат через padding-bottom, чтобы не наслаивалось -->
-      <div id="photoGrid" class="flex-1 overflow-y-auto px-2 pb-2 grid grid-cols-3 gap-2"></div>
+      <div id="photoGrid" class="flex-1 overflow-y-auto px-2 pb-2"></div>
 
       <!-- bottom -->
-      <div class="glass p-4 rounded-t-3xl shadow-soft">
+      <div class="glass p-4 rounded-t-3xl shadow-soft sheet" style="opacity:1;transform:none">
         <div class="flex items-center justify-between gap-3">
           <button id="galleryBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">🖼 Галерея</button>
           <button id="cameraBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">📷 Камера</button>
@@ -67,9 +181,11 @@
 
   <!-- Full image -->
   <div id="fullModal" class="modal items-center justify-center p-4">
-    <div class="w-full max-w-3xl">
-      <div class="flex justify-end mb-2">
-        <button id="fullClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+    <div class="w-full max-w-3xl relative centerCard">
+      <div class="fullbar">
+        <button id="fullDownload" class="mini btn px-3 py-2 rounded-2xl text-sm">⬇️</button>
+        <button id="fullDelete" class="mini btn px-3 py-2 rounded-2xl text-sm hidden">🗑</button>
+        <button id="fullClose" class="mini btn px-3 py-2 rounded-2xl text-sm">✕</button>
       </div>
       <img id="fullImg" class="w-full max-h-[80vh] object-contain rounded-2xl" src="">
     </div>
@@ -77,7 +193,7 @@
 
   <!-- Camera -->
   <div id="cameraModal" class="modal items-center justify-center p-4">
-    <div class="w-full max-w-xl glass rounded-3xl p-4 shadow-soft">
+    <div class="w-full max-w-xl glass rounded-3xl p-4 shadow-soft centerCard">
       <div class="flex items-center justify-between">
         <div class="font-bold">📷 Камера</div>
         <div class="flex items-center gap-2">
@@ -104,7 +220,7 @@
 
   <!-- Share -->
   <div id="shareModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
+    <div class="w-full rounded-t-3xl glass p-4 shadow-soft sheet">
       <div class="flex items-center justify-between">
         <div class="font-bold">📤 Поделиться</div>
         <button id="shareClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
@@ -112,16 +228,15 @@
 
       <div class="mt-3 text-sm font-semibold">Права по ссылке (просмотр всегда есть)</div>
 
-      <!-- ✅ два тумблера = 4 варианта -->
       <div class="mt-2 grid gap-2">
         <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
           <div>
             <div class="font-semibold">⬆️ Загрузка</div>
             <div class="text-xs opacity-70">Можно добавлять фото</div>
           </div>
-          <input id="shareCanUpload" type="checkbox" class="sr-only peer" checked>
-          <div class="w-12 h-7 rounded-full bg-white/15 relative transition peer-checked:bg-green-500/35">
-            <div class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/80 transition peer-checked:translate-x-5"></div>
+          <div class="flex items-center gap-3">
+            <input id="shareCanUpload" type="checkbox" class="sr-only" checked>
+            <span class="tg-toggle tg-green"><span class="dot"></span></span>
           </div>
         </label>
 
@@ -130,15 +245,11 @@
             <div class="font-semibold">🗑 Удаление</div>
             <div class="text-xs opacity-70">Можно удалять фото (как модератор)</div>
           </div>
-          <input id="shareCanDelete" type="checkbox" class="sr-only peer">
-          <div class="w-12 h-7 rounded-full bg-white/15 relative transition peer-checked:bg-red-500/35">
-            <div class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/80 transition peer-checked:translate-x-5"></div>
+          <div class="flex items-center gap-3">
+            <input id="shareCanDelete" type="checkbox" class="sr-only">
+            <span class="tg-toggle tg-red"><span class="dot"></span></span>
           </div>
         </label>
-      </div>
-
-      <div class="mt-3 text-xs opacity-70">
-        Получается 4 варианта: (оба OFF), (загрузка ON), (удаление ON), (оба ON).
       </div>
 
       <div class="mt-4 text-sm font-semibold">Сколько людей смогут зайти</div>
@@ -158,7 +269,7 @@
 
   <!-- Settings -->
   <div id="manageModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft">
+    <div class="w-full rounded-t-3xl glass p-4 shadow-soft sheet">
       <div class="flex items-center justify-between">
         <div class="font-bold">⚙️ Настройки</div>
         <button id="manageClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
@@ -179,7 +290,7 @@
 
   <!-- Members -->
   <div id="membersModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft max-h-[80vh] overflow-y-auto">
+    <div class="w-full rounded-t-3xl glass p-4 shadow-soft max-h-[80vh] overflow-y-auto sheet">
       <div class="flex items-center justify-between">
         <div class="font-bold">👥 Участники</div>
         <button id="membersClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
@@ -201,16 +312,15 @@
           <button id="pickBtn" class="btn glass w-full py-3 rounded-2xl">👤 Добавить человека через Telegram</button>
         </div>
 
-        <!-- ✅ красивые тумблеры -->
         <div class="mt-3 grid gap-2">
           <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between">
             <div>
               <div class="font-semibold text-sm">⬆️ Загрузка</div>
               <div class="text-xs opacity-70">Разрешить добавлять фото</div>
             </div>
-            <input id="canUploadChk" type="checkbox" class="sr-only peer" checked>
-            <div class="w-12 h-7 rounded-full bg-white/15 relative transition peer-checked:bg-green-500/35">
-              <div class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/80 transition peer-checked:translate-x-5"></div>
+            <div class="flex items-center gap-3">
+              <input id="canUploadChk" type="checkbox" class="sr-only" checked>
+              <span class="tg-toggle tg-green"><span class="dot"></span></span>
             </div>
           </label>
 
@@ -219,9 +329,9 @@
               <div class="font-semibold text-sm">🗑 Удаление</div>
               <div class="text-xs opacity-70">Разрешить удалять фото</div>
             </div>
-            <input id="canDeleteChk" type="checkbox" class="sr-only peer">
-            <div class="w-12 h-7 rounded-full bg-white/15 relative transition peer-checked:bg-red-500/35">
-              <div class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white/80 transition peer-checked:translate-x-5"></div>
+            <div class="flex items-center gap-3">
+              <input id="canDeleteChk" type="checkbox" class="sr-only">
+              <span class="tg-toggle tg-red"><span class="dot"></span></span>
             </div>
           </label>
         </div>
@@ -260,6 +370,8 @@
     let camStream = null;
     let cameraFacing = "environment";
 
+    let fullState = { url: "", uploadedBy: 0 };
+
     const $ = (id) => document.getElementById(id);
 
     function toast(msg){
@@ -274,6 +386,24 @@
       return (s||"").replace(/[&<>"']/g, m => ({
         "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
       })[m]);
+    }
+
+    /* ✅ make custom toggles clickable + animated */
+    function bindToggle(inputId){
+      const inp = $(inputId);
+      if(!inp) return;
+      const track = inp.parentElement?.querySelector(".tg-toggle");
+      if(track){
+        const sync = () => {
+          // dot animation happens via CSS when input is checked, but track is sibling, not + in DOM
+          // so we simulate checkbox state by toggling a class on track and using CSS via checked not possible here.
+          // easiest: move track after input? It's already after input, but inside a wrapper div.
+          // We'll just keep input + track directly by ensuring markup order: input then span (we did).
+        };
+        track.onclick = () => inp.click();
+        inp.addEventListener("change", sync);
+        sync();
+      }
     }
 
     function showAlbumsScreen(){
@@ -293,7 +423,7 @@
     async function loadAlbums(){
       if(isGuest){
         $("albumsList").innerHTML = `
-          <div class="glass rounded-2xl p-4 btn">
+          <div class="glass rounded-2xl p-4 btn pop">
             <div class="font-semibold">Гостевой режим (ID: 112)</div>
             <div class="text-xs opacity-70 mt-1">Для списка альбомов открой мини-апп в Telegram. Но 112 можно добавлять в альбомы для тестов.</div>
           </div>`;
@@ -303,8 +433,9 @@
       const r = await fetch(`${API}/api/albums/${userId}`);
       const d = await r.json();
 
-      $("albumsList").innerHTML = (d || []).map(a => `
-        <div class="glass rounded-2xl p-4 btn flex items-center justify-between"
+      $("albumsList").innerHTML = (d || []).map((a,i) => `
+        <div class="glass rounded-2xl p-4 btn flex items-center justify-between pop"
+             style="animation-delay:${i*20}ms"
              onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
           <div>
             <div class="font-semibold">${escapeHtml(a.name)}</div>
@@ -349,32 +480,80 @@
 
       const items = d.items || [];
 
-      // ✅ FIX: квадратная сетка без aspect-ratio
-      $("photoGrid").innerHTML = items.map(p => `
-        <div class="relative w-full rounded-xl overflow-hidden bg-white/5 btn" onclick="openFull('${p.url}')">
-          <div class="pb-[100%]"></div>
-          <img src="${p.url}" class="absolute inset-0 w-full h-full object-cover" loading="lazy">
-          ${renderDeleteBtn(p.url, p.uploaded_by)}
+      // ✅ only squares, always 3 per row, no overlays
+      $("photoGrid").innerHTML = items.map((p,i) => `
+        <div class="photo-tile pop"
+             style="animation-delay:${i*15}ms"
+             onclick="openFull('${p.url}', ${p.uploaded_by || 0})">
+          <img src="${p.url}" loading="lazy" />
         </div>
       `).join("");
     }
 
-    function renderDeleteBtn(url, uploadedBy){
-      const can = currentPerms.is_owner || currentPerms.can_delete || (uploadedBy && uploadedBy === userId);
-      if(!can) return "";
-      return `
-        <button class="absolute top-1 right-1 bg-black/55 px-2 py-1 rounded-xl text-xs btn"
-                onclick="event.stopPropagation(); deletePhoto('${url}')">🗑</button>
-      `;
-    }
-
-    window.openFull = function(url){
+    // ✅ Fullscreen actions
+    window.openFull = function(url, uploadedBy){
+      fullState = { url, uploadedBy: uploadedBy || 0 };
       $("fullImg").src = url;
+
+      // show delete only if allowed (owner/moderator/author)
+      const canDelete = currentPerms.is_owner || currentPerms.can_delete || (fullState.uploadedBy && fullState.uploadedBy === userId);
+      $("fullDelete").classList.toggle("hidden", !canDelete);
+
       $("fullModal").classList.add("show");
     }
 
     $("fullClose").onclick = () => $("fullModal").classList.remove("show");
     $("fullModal").onclick = (e) => { if(e.target === $("fullModal")) $("fullModal").classList.remove("show"); };
+
+    async function downloadCurrent(){
+      const url = fullState.url;
+      if(!url){ toast("Нет файла"); return; }
+      try{
+        // try blob download
+        const resp = await fetch(url, { mode: "cors" });
+        const blob = await resp.blob();
+        const ext = (blob.type && blob.type.includes("png")) ? "png" : "jpg";
+        const name = `iventry_${Date.now()}.${ext}`;
+
+        const a = document.createElement("a");
+        const objectUrl = URL.createObjectURL(blob);
+        a.href = objectUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+        toast("⬇️ Скачивание началось");
+      }catch(_){
+        // fallback open
+        tg.openLink(fullState.url);
+        toast("Открыл файл для сохранения");
+      }
+    }
+
+    $("fullDownload").onclick = downloadCurrent;
+
+    async function deleteCurrentFull(){
+      if(!fullState.url) return;
+      const ok = confirm("Удалить это фото?");
+      if(!ok) return;
+
+      const fd = new FormData();
+      fd.append("album_code", currentAlbumCode);
+      fd.append("user_id", userId);
+      fd.append("file_url", fullState.url);
+
+      const r = await fetch(`${API}/api/photo/delete`, { method:"POST", body: fd });
+      const d = await r.json();
+      if(!r.ok){
+        toast(d?.detail || "Не удалось удалить");
+        return;
+      }
+      toast("🗑 Удалено");
+      $("fullModal").classList.remove("show");
+      await loadPhotos();
+    }
+    $("fullDelete").onclick = deleteCurrentFull;
 
     function galleryPicker(){
       const inp = document.createElement("input");
@@ -503,22 +682,6 @@
       galleryPicker();
     }
 
-    window.deletePhoto = async function(url){
-      const fd = new FormData();
-      fd.append("album_code", currentAlbumCode);
-      fd.append("user_id", userId);
-      fd.append("file_url", url);
-
-      const r = await fetch(`${API}/api/photo/delete`, { method:"POST", body: fd });
-      const d = await r.json();
-      if(!r.ok){
-        toast(d?.detail || "Не удалось удалить");
-        return;
-      }
-      toast("🗑 Удалено");
-      await loadPhotos();
-    }
-
     function openManage(){
       if(!currentAlbumCode) return;
 
@@ -529,7 +692,7 @@
       $("manageModal").classList.add("show");
     }
 
-    // ✅ новые права: два тумблера (4 варианта)
+    // Share rights (2 toggles = 4 variants)
     function getShareRights(){
       const can_upload = $("shareCanUpload").checked;
       const can_delete = $("shareCanDelete").checked;
@@ -686,52 +849,15 @@
       await loadMembers();
     }
 
-    function memberCard(m){
+    function memberCard(m, i){
       const hasProfile = !!(m.username || m.first_name || m.last_name);
       const displayName = hasProfile
         ? ([m.first_name, m.last_name].filter(Boolean).join(" ").trim() || ("@" + (m.username||"")))
         : "Гость";
       const uname = m.username ? "@" + m.username : "—";
-
-      // ✅ как просил: если профиля нет — показываем 112
       const displayId = hasProfile ? m.user_id : 112;
-
       const initial = (m.first_name || m.username || "G").toString().charAt(0).toUpperCase();
 
-      const permsText =
-        "👀 просмотр" +
-        (m.can_upload ? " • ⬆️ загрузка" : "") +
-        (m.can_delete ? " • 🗑 удаление" : "");
-
-      // ✅ тумблеры прямо в карточке (только для владельца)
-      const rightControls = currentPerms.is_owner ? `
-        <div class="flex flex-col items-end gap-2">
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] opacity-70">⬆️</span>
-            <input id="mu_${m.user_id}" type="checkbox" class="sr-only peer" ${m.can_upload ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
-            <div class="w-10 h-6 rounded-full bg-white/15 relative transition peer-checked:bg-green-500/35 cursor-pointer"
-                 onclick="document.getElementById('mu_${m.user_id}').click()">
-              <div class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white/80 transition peer-checked:translate-x-4"></div>
-            </div>
-
-            <span class="text-[11px] opacity-70 ml-2">🗑</span>
-            <input id="md_${m.user_id}" type="checkbox" class="sr-only peer2" ${m.can_delete ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
-            <div class="w-10 h-6 rounded-full bg-white/15 relative transition cursor-pointer"
-                 onclick="document.getElementById('md_${m.user_id}').click()"
-                 style="${m.can_delete ? 'background: rgba(239,68,68,.35);' : ''}">
-              <div class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white/80 transition"
-                   style="${m.can_delete ? 'transform: translateX(16px);' : ''}"></div>
-            </div>
-          </div>
-
-          <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
-                  onclick="removeMember(${m.user_id})">Удалить</button>
-        </div>
-      ` : `
-        <div class="text-[11px] opacity-80 text-right">${escapeHtml(permsText)}</div>
-      `;
-
-      // аватар через API (если нет — буква)
       const avatar = `
         <div class="relative w-11 h-11 rounded-2xl bg-white/10 overflow-hidden shrink-0">
           <span class="fallback absolute inset-0 flex items-center justify-center font-bold">${escapeHtml(initial)}</span>
@@ -741,8 +867,30 @@
         </div>
       `;
 
+      const controls = currentPerms.is_owner ? `
+        <div class="flex flex-col items-end gap-2">
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] opacity-70">⬆️</span>
+            <input id="mu_${m.user_id}" type="checkbox" class="sr-only" ${m.can_upload ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
+            <span class="tg-toggle tg-green"><span class="dot"></span></span>
+
+            <span class="text-[11px] opacity-70">🗑</span>
+            <input id="md_${m.user_id}" type="checkbox" class="sr-only" ${m.can_delete ? "checked" : ""} onchange="updateMemberPermFromUI(${m.user_id})">
+            <span class="tg-toggle tg-red"><span class="dot"></span></span>
+          </div>
+
+          <button class="btn glass px-3 py-2 rounded-2xl text-xs text-red-200"
+                  onclick="removeMember(${m.user_id})">Удалить</button>
+        </div>
+      ` : `
+        <div class="text-[11px] opacity-80 text-right">
+          👀 просмотр${m.can_upload ? " • ⬆️" : ""}${m.can_delete ? " • 🗑" : ""}
+        </div>
+      `;
+
       return `
-        <div class="glass rounded-2xl p-3 btn flex items-center justify-between gap-3">
+        <div class="glass rounded-2xl p-3 btn flex items-center justify-between gap-3 pop"
+             style="animation-delay:${i*15}ms">
           <div class="flex items-center gap-3 min-w-0">
             ${avatar}
             <div class="min-w-0">
@@ -751,7 +899,7 @@
               <div class="text-xs opacity-70">ID: ${escapeHtml(String(displayId))}</div>
             </div>
           </div>
-          ${rightControls}
+          ${controls}
         </div>
       `;
     }
@@ -763,32 +911,17 @@
         toast(d?.detail || "Не удалось получить список");
         return;
       }
+      $("membersList").innerHTML = (d || []).map((m,i) => memberCard(m,i)).join("") || `<div class="text-xs opacity-70">Пока никого нет</div>`;
 
-      // маленький хак: чтобы красный тумблер (delete) отображался корректно
-      $("membersList").innerHTML = (d || []).map(memberCard).join("") || `<div class="text-xs opacity-70">Пока никого нет</div>`;
-
-      // подправим визуал delete-тумблеров (peer2 без tailwind)
+      // bind click on toggles in cards (track after input)
       (d || []).forEach(m => {
+        const mu = document.getElementById(`mu_${m.user_id}`);
         const md = document.getElementById(`md_${m.user_id}`);
-        if(md){
-          const pill = md.nextElementSibling;
-          const dot = pill?.querySelector("div");
-          const apply = () => {
-            if(md.checked){
-              pill.style.background = "rgba(239,68,68,.35)";
-              dot.style.transform = "translateX(16px)";
-            }else{
-              pill.style.background = "rgba(255,255,255,.15)";
-              dot.style.transform = "translateX(0px)";
-            }
-          };
-          apply();
-          md.addEventListener("change", apply);
-        }
+        if(mu && mu.nextElementSibling) mu.nextElementSibling.onclick = () => mu.click();
+        if(md && md.nextElementSibling) md.nextElementSibling.onclick = () => md.click();
       });
     }
 
-    // ✅ обновление прав из карточки (4 варианта)
     window.updateMemberPermFromUI = async function(memberId){
       if(!currentPerms.is_owner){ toast("Только владелец"); return; }
 
@@ -876,7 +1009,6 @@
 
     window.removeMember = async function(memberId){
       if(!currentPerms.is_owner){ toast("Только владелец"); return; }
-
       const ok = confirm("Удалить участника из альбома?");
       if(!ok) return;
 
@@ -944,10 +1076,17 @@
 
     $("topMenuBtn").onclick = () => openManage();
 
+    // close when tap outside
     for (const id of ["cameraModal","manageModal","membersModal","shareModal"]){
       $(id).onclick = (e) => { if(e.target === $(id)) $(id).classList.remove("show"); };
     }
 
+    // ✅ bind toggles in share/add boxes
+    // (input is immediately before track span, so CSS input:checked + .tg-toggle works)
+    bindToggle("shareCanUpload"); bindToggle("shareCanDelete");
+    bindToggle("canUploadChk"); bindToggle("canDeleteChk");
+
+    // init
     showAlbumsScreen();
     loadAlbums();
   </script>
