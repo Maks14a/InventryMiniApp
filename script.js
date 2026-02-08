@@ -66,22 +66,25 @@ function showAlbumScreen(){
   $("topMenuBtn").onclick = () => openManage();
 }
 
-async function loadAlbums(){
-  if(isGuest){
+async function loadAlbums() {
+  // Убрали return, теперь гость тоже идет в API
+  const r = await fetch(`${API}/api/albums/${userId}`);
+  const d = await r.json();
+
+  const albums = d || [];
+  
+  if (albums.length === 0) {
     $("albumsList").innerHTML = `
-      <div class="glass rounded-2xl p-4 btn pop">
-        <div class="font-semibold">Гостевой режим (ID: 112)</div>
-        <div class="text-xs opacity-70 mt-1">Для списка альбомов открой мини-апп в Telegram. Но 112 можно добавлять в альбомы для тестов.</div>
+      <div class="glass rounded-2xl p-4 btn pop text-center">
+        <div class="font-semibold">Альбомов пока нет</div>
+        <div class="text-xs opacity-70 mt-1">Тебя должны добавить в альбом по ID: ${userId}</div>
       </div>`;
     return;
   }
 
-  const r = await fetch(`${API}/api/albums/${userId}`);
-  const d = await r.json();
-
-  $("albumsList").innerHTML = (d || []).map((a,i) => `
+  $("albumsList").innerHTML = albums.map((a, i) => `
     <div class="glass rounded-2xl p-4 btn flex items-center justify-between pop"
-         style="animation-delay:${i*20}ms"
+         style="animation-delay:${i * 20}ms"
          onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
       <div>
         <div class="font-semibold">${escapeHtml(a.name)}</div>

@@ -3,25 +3,37 @@
   --dur2: 280ms;
   --e: cubic-bezier(.2,.85,.2,1);
 }
-* { -webkit-tap-highlight-color: transparent; }
-body { margin:0; background:#0b0b0f; color:#fff; }
+
+/* Базовые сбросы */
+* { 
+  -webkit-tap-highlight-color: transparent; 
+  box-sizing: border-box; 
+}
+
+body { 
+  margin:0; 
+  background:#0b0b0f; 
+  color:#fff; 
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
+}
 
 .glass { background:rgba(255,255,255,.08); backdrop-filter:blur(16px); }
+
 .btn {
   border:1px solid rgba(255,255,255,.12);
   transition:
     transform var(--dur) var(--e),
     background var(--dur) var(--e),
     border-color var(--dur) var(--e),
-    opacity var(--dur) var(--e),
-    filter var(--dur) var(--e);
-  will-change: transform, opacity;
+    opacity var(--dur) var(--e);
+  will-change: transform;
 }
 .btn:active { transform: scale(.98); }
 .btn:hover { border-color: rgba(255,255,255,.20); }
 .shadow-soft { box-shadow:0 10px 35px rgba(0,0,0,.35); }
 
-/* MODALS */
+/* МОДАЛЬНЫЕ ОКНА */
 .modal {
   position:fixed; inset:0;
   background:rgba(0,0,0,.68);
@@ -37,7 +49,6 @@ body { margin:0; background:#0b0b0f; color:#fff; }
   transform: translate3d(0,18px,0);
   opacity:0;
   transition: transform var(--dur2) var(--e), opacity var(--dur2) var(--e);
-  will-change: transform, opacity;
 }
 .modal.show .sheet { transform: translate3d(0,0,0); opacity:1; }
 
@@ -45,11 +56,10 @@ body { margin:0; background:#0b0b0f; color:#fff; }
   transform: scale(.965);
   opacity:0;
   transition: transform var(--dur2) var(--e), opacity var(--dur2) var(--e);
-  will-change: transform, opacity;
 }
 .modal.show .centerCard { transform: scale(1); opacity:1; }
 
-/* TOGGLE */
+/* ПЕРЕКЛЮЧАТЕЛИ (TOGGLES) */
 .tg-toggle {
   width:48px; height:28px;
   border-radius:999px;
@@ -57,7 +67,6 @@ body { margin:0; background:#0b0b0f; color:#fff; }
   position:relative;
   transition: background var(--dur) var(--e);
   cursor:pointer;
-  flex: 0 0 auto;
 }
 .tg-toggle .dot {
   position:absolute; top:4px; left:4px;
@@ -65,109 +74,92 @@ body { margin:0; background:#0b0b0f; color:#fff; }
   border-radius:999px;
   background:rgba(255,255,255,.85);
   transition: transform var(--dur) var(--e);
-  will-change: transform;
-  pointer-events:none;
 }
 input:checked + .tg-toggle .dot { transform: translate3d(20px,0,0); }
-input:checked + .tg-toggle.tg-green { background:rgba(34,197,94,.35); }
-input:checked + .tg-toggle.tg-red { background:rgba(239,68,68,.35); }
-input:checked + .tg-toggle.tg-blue { background:rgba(59,130,246,.35); }
+input:checked + .tg-toggle.tg-green { background:rgba(34,197,94,.5); }
+input:checked + .tg-toggle.tg-red { background:rgba(239,68,68,.5); }
 
-/* ✅ PHOTO GRID: ИСПРАВЛЕННЫЙ */
+/* ИСПРАВЛЕННАЯ СЕТКА ФОТО (БЕЗ НАЛОЖЕНИЙ) */
 #photoGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Простая, надежная сетка */
-  gap: 10px;
-  padding-bottom: 140px;
-  /* Убрал align-content: start и justify-items, чтобы грид работал нативно */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px; /* Расстояние между фото */
+  padding: 8px;
+  padding-bottom: 120px;
 }
 
 .photo-tile {
   position: relative;
-  width: 100%;
-  border-radius: 14px;
-  overflow: hidden;
+  /* (100% - 16px межсеточного пространства) / 3 колонки */
+  width: calc((100% - 16px) / 3);
+  /* Хак для фиксации высоты (padding-top резервирует место сразу) */
+  height: 0;
+  padding-top: calc((100% - 16px) / 3); 
+  border-radius: 12px;
   background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.10);
-  transition: transform var(--dur) var(--e), border-color var(--dur) var(--e), filter var(--dur) var(--e);
-  will-change: transform;
-  
-  /* ✅ УБРАЛ content-visibility: auto — это и было причиной наслоения */
-  aspect-ratio: 1 / 1; 
-}
-.photo-tile:hover { border-color: rgba(255,255,255,.22); filter: brightness(1.03); }
-.photo-tile:active { transform: scale(.985); }
-
-/* fallback если aspect-ratio не поддерживается (для старых iOS) */
-@supports not (aspect-ratio: 1 / 1) {
-  .photo-tile::before {
-    content:"";
-    display:block;
-    padding-top:100%;
-  }
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
 }
 
 .photo-tile img {
-  position:absolute; inset:0;
-  width:100%; height:100%;
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  transform: translate3d(0,0,0);
-  -webkit-user-drag:none;
-  user-select:none;
+  display: block;
 }
 
-@keyframes popIn {
-  from { opacity:0; transform: translate3d(0,10px,0); }
-  to { opacity:1; transform: translate3d(0,0,0); }
+/* АНИМАЦИЯ ПОЯВЛЕНИЯ (БЕЗ TRANSLATE ЧТОБЫ НЕ ГЛЮЧИЛО) */
+.pop {
+  animation: fadeIn 0.3s ease forwards;
 }
-.pop { animation: popIn var(--dur2) var(--e) both; }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
-/* Fullscreen viewer */
+/* ФУЛЛСКРИН ПРОСМОТР */
 .fullbar {
   position:absolute;
   top:12px; left:12px; right:12px;
   display:flex;
   justify-content:flex-end;
   gap:8px;
-  z-index:5;
-  pointer-events:auto;
+  z-index:10;
 }
 .fullbar .mini {
   background: rgba(0,0,0,.45);
   border: 1px solid rgba(255,255,255,.14);
   backdrop-filter: blur(12px);
+  padding: 8px;
+  border-radius: 12px;
 }
 
 #fullViewer {
   position:relative;
+  width: 100%;
+  height: 100%;
   overflow:hidden;
-  border-radius: 16px;
-  background: rgba(0,0,0,.35);
-  touch-action: none;
 }
 
 #fullTrack {
   display:flex;
-  transform: translate3d(0,0,0);
-  transition: none !important;
-  will-change: transform;
+  height: 100%;
+  transition: transform 0.3s ease-out;
 }
 
 .fullSlide {
   min-width:100%;
+  height: 100%;
   display:flex;
   align-items:center;
   justify-content:center;
-  padding: 10px;
-  box-sizing:border-box;
 }
+
 .fullImg {
-  max-height: 78vh;
-  width: 100%;
+  max-width: 100%;
+  max-height: 80vh;
   object-fit: contain;
-  user-select:none;
-  -webkit-user-drag:none;
-  transform: translate3d(0,0,0) scale(1);
-  transform-origin: center center;
-  will-change: transform;
+  pointer-events: none;
 }
