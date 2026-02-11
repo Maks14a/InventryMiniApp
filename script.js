@@ -1,7 +1,7 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const API = "https://bot13-iventry.amvera.io";
+const API = "https://api-eju8g7j209.amvera.io";
 
 const tgUserId = tg.initDataUnsafe?.user?.id || 0;
 const isGuest = !tgUserId;
@@ -9,7 +9,32 @@ const userId = tgUserId || 112;
 
 if (isGuest) document.getElementById("guestBanner").classList.remove("hidden");
 
-let currentAlbumCode = "";
+let currentAlbumCode = new URLSearchParams(window.location.search).get('code') || "";
+
+async function joinToAlbum() {
+  if(!currentAlbumCode) return;
+  try {
+    await fetch(`${API}/api/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        album_code: currentAlbumCode,
+        user_id: userId,
+        username: tg.initDataUnsafe?.user?.username || '',
+        first_name: tg.initDataUnsafe?.user?.first_name || '',
+        last_name: tg.initDataUnsafe?.user?.last_name || ''
+      })
+    });
+  } catch (e) { console.error("Join error:", e); }
+}
+
+// Запускаем регистрацию и загрузку
+if (currentAlbumCode) {
+  joinToAlbum().then(() => {
+    loadPhotos();
+    getAlbumDetails();
+  });
+}
 let currentAlbumName = "";
 let currentPerms = { is_owner:false, can_upload:false, can_delete:false };
 
@@ -103,6 +128,22 @@ window.openAlbum = async function(code, name){
 }
 
 async function loadPhotos(){
+  // --- НОВЫЙ БЛОК: Авто-регистрация при входе ---
+  try {
+    await fetch(`${API}/api/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        album_code: currentAlbumCode,
+        user_id: userId,
+        username: tg.initDataUnsafe?.user?.username || '',
+        first_name: tg.initDataUnsafe?.user?.first_name || '',
+        last_name: tg.initDataUnsafe?.user?.last_name || ''
+      })
+    });
+  } catch (e) { console.error("Join error:", e); }
+  // --- КОНЕЦ БЛОКА ---
+
   $("photoGrid").innerHTML = "";
   $("permBadge").textContent = "Загрузка…";
   $("uploadHint").textContent = "";
@@ -117,29 +158,9 @@ async function loadPhotos(){
     return;
   }
 
+  // Дальше весь твой остальной код функции loadPhotos...
   currentPerms = d.perms || {is_owner:false, can_upload:false, can_delete:false};
-  const badge = currentPerms.is_owner
-    ? "👑 Владелец"
-    : (currentPerms.can_upload ? "✅ Участник (загрузка)" : "👀 Просмотр");
-  $("permBadge").textContent = badge;
-
-  $("uploadHint").textContent = currentPerms.can_upload
-    ? "Можно добавлять фото. Удаление: владелец/модератор/автор фото."
-    : "Нет прав на загрузку. Попроси владельца выдать доступ.";
-
-  const items = d.items || [];
-  albumPhotos = items.map(p => ({ url: p.url, uploaded_by: p.uploaded_by || 0 }));
-
-  // ✅ для 100+ фото — без pop-анимаций (иначе может дергать)
-  const animateTiles = items.length <= 60;
-
-  $("photoGrid").innerHTML = items.map((p,i) => `
-    <div class="photo-tile ${animateTiles ? "pop" : ""}"
-         style="${animateTiles ? `animation-delay:${i*12}ms` : ""}"
-         onclick="openFullAtUrl('${p.url}')">
-      <img src="${p.url}" loading="lazy" decoding="async" />
-    </div>
-  `).join("");
+  // ... и так далее до конца функции
 }
 
 // ===== FULLSCREEN SWIPE + ZOOM (без анимации перехода) =====
@@ -930,7 +951,6 @@ $("shareLinkBtn").onclick = async () => { await shareByLink(); }
 $("sharePersonBtn").onclick = () => { sharePersonToBot(); }
 
 $("cameraClose").onclick = stopCamera;
-$("camFallback").onclick = cameraFallback;
 $("camShot").onclick = takeShot;
 $("camFlip").onclick = flipCamera;
 
