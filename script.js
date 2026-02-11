@@ -4,13 +4,15 @@ tg.expand();
 const API = "https://api-eju8g7j209.amvera.io";
 const botUsername = "Iventry_Bot"; 
 
-const tgUserId = tg.initDataUnsafe?.user?.id || 0;
+const tgUserId = tg.initDataUnsafe?.user?.id;
 const isGuest = !tgUserId;
-const userId = tgUserId || 112;
+const userId = tgUserId ? parseInt(tgUserId) : 112;
 
 if (isGuest) document.getElementById("guestBanner").classList.remove("hidden");
 
-let currentAlbumCode = new URLSearchParams(window.location.search).get('code') || "";
+let currentAlbumCode = new URLSearchParams(window.location.search).get('code') 
+                   || tg.initDataUnsafe?.start_param 
+                   || "";
 
 async function joinToAlbum() {
   if(!currentAlbumCode) return;
@@ -32,14 +34,53 @@ async function joinToAlbum() {
 async function getAlbumDetails() {
   try {
     const r = await fetch(`${API}/api/album/${currentAlbumCode}`);
+    if (!r.ok) throw new Error("Альбом не найден");
     const d = await r.json();
-    if (r.ok) {
-      $("topTitle").textContent = d.name;
-      // ВЫЗЫВАЕМ ПРОВЕРКУ СТАТУСА (Закрыт/Открыт)
-      checkAlbumStatus(d); 
-      updateLimitDisplay();
+    
+    currentAlbumName = d.name;
+    currentFilter = d.default_filter || 'none';
+    photoLimit = d.photo_limit || 10;
+    
+    const now = Math.floor(Date.now() / 1000);
+    const openAt = d.open_at_ts || 0;
+    
+    // Если время еще не пришло, просто пишем об этом, но не вешаем страницу
+    if (openAt > now) {
+        const diffMin = Math.ceil((openAt - now) / 60);
+        document.getElementById("topTitle").innerText = `Ждем ${diffMin} мин`;
+    } else {
+        document.getElementById("topTitle").innerText = d.name;
     }
-  } catch (e) { console.error("Details error:", e); }
+    
+    await loadPhotos();
+  } catch (e) { 
+    console.error("Ошибка:", e);
+    document.getElementById("topTitle").innerText = "Ошибка входа";
+  }
+}
+
+async function checkUserPermissions() {
+    try {
+        const res = await fetch(`${API}/api/album/${currentAlbumCode}/member/${userId}`);
+        const data = await res.json();
+        
+        // Если роль - владелец или админ, показываем шестеренку настроек
+        if (data.role === 'owner' || data.role === 'admin') {
+            const menuBtn = document.getElementById("topMenuBtn");
+            if (menuBtn) menuBtn.classList.remove("hidden");
+            console.log("Доступ разрешен: ты " + data.role);
+        }
+    } catch (e) {
+        console.error("Ошибка проверки прав:", e);
+    }
+    // Найди эти строки и добавь checkUserPermissions() в конец
+    async function init() {
+        await joinToAlbum();
+        await getAlbumDetails();
+        await checkUserPermissions(); // Вот этот вызов ОБЯЗАТЕЛЬНО добавь
+    }
+
+    init();
 }
 
 // --- ЗАГРУЗКА И РЕНДЕР (ВСТАВЛЯЙ СЮДА) ---
