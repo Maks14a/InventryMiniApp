@@ -45,46 +45,49 @@ async function getAlbumDetails() {
 }
 
 async function loadPhotos() {
-  // 1. Показываем состояние загрузки
-  $("photoGrid").innerHTML = "";
-  $("permBadge").textContent = "Синхронизация…";
+  const grid = document.getElementById("photoGrid");
+  const badge = document.getElementById("permBadge");
+  
+  grid.innerHTML = "";
+  badge.textContent = "Синхронизация…";
 
   try {
-    // 2. Запрос за фото и правами
     const r = await fetch(`${API}/api/photos/${currentAlbumCode}?user_id=${userId}`);
     const d = await r.json();
 
-    if (!r.ok) {
-      toast(d?.detail || "Ошибка доступа");
-      $("permBadge").textContent = "Заблокировано";
-      return;
+    // Если сервер ответил 403 (время не пришло)
+    if (r.status === 403) {
+      badge.textContent = "🔒 Закрыт";
+      grid.innerHTML = `<div class="col-span-3 text-center py-10 opacity-50">${d.detail || "Доступ закрыт по времени"}</div>`;
+      // Не выходим, чтобы владелец мог пользоваться меню
+      return; 
     }
 
-    // 3. Установка прав и Роли
+    if (!r.ok) throw new Error(d.detail);
+
+    // Установка прав
     currentPerms = d.perms || { is_owner: false, role: 'member' };
-    const badge = $("permBadge");
+    
+    // Обновляем бейдж роли
     if (currentPerms.is_owner) badge.textContent = "👑 Владелец";
     else if (currentPerms.role === 'moderator') badge.textContent = "🛡 Модератор";
     else badge.textContent = "👤 Участник";
 
-    // 4. ЛОГИКА СЧЕТЧИКА (ТЗ: Ограничение фото для 1 человека)
-    // Берем лимит из настроек альбома (подгруженных в getAlbumDetails)
+    // СЧЕТЧИК ЛИМИТА
     const totalLimit = window.albumSettings?.photo_limit || 15;
     const items = d.items || [];
-    
-    // Считаем сколько фото загрузил ТЕКУЩИЙ юзер
     const myPhotos = items.filter(p => p.uploaded_by == userId).length;
     const left = totalLimit - myPhotos;
     
-    const limitBadge = $("photoLimitBadge");
+    const limitBadge = document.getElementById("photoLimitBadge");
     if (limitBadge) {
       limitBadge.textContent = left > 0 ? left : 0;
       limitBadge.style.color = left <= 0 ? "#ff4b4b" : "#4ade80";
     }
 
-    // 5. Рендер сетки
+    // РЕНДЕР
     albumPhotos = items.map(p => ({ url: p.url, uploaded_by: p.uploaded_by }));
-    $("photoGrid").innerHTML = items.map((p, i) => `
+    grid.innerHTML = items.map((p, i) => `
       <div class="photo-tile pop" style="animation-delay:${i * 10}ms" onclick="openFullAtUrl('${p.url}')">
         <img src="${p.url}" loading="lazy" />
       </div>
@@ -92,7 +95,8 @@ async function loadPhotos() {
 
   } catch (e) {
     console.error("Load error:", e);
-    toast("Ошибка сети");
+    badge.textContent = "⚠️ Ошибка";
+    grid.innerHTML = `<div class="col-span-3 text-center py-10 opacity-50">Не удалось загрузить фото</div>`;
   }
 }
 
