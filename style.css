@@ -163,3 +163,13 @@ input:checked + .tg-toggle.tg-red { background:rgba(239,68,68,.5); }
   object-fit: contain;
   pointer-events: none;
 }
+
+#filterMenu:not(.hidden) {
+  display: flex;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

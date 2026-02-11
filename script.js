@@ -484,11 +484,19 @@ async function flipCamera(){
   await startCamera();
 }
 
-async function takeShot(){
-  try{
+async function takeShot() {
+  try {
     const v = $("camVideo");
-    if(!v || !v.videoWidth){
-      toast("Нет видео — жми «Фолбэк»");
+    if (!v || !v.videoWidth) {
+      toast("Камера не готова");
+      return;
+    }
+
+    // Проверка лимита перед съемкой (на всякий случай)
+    const badge = $("photoLimitBadge");
+    let left = parseInt(badge.textContent) || 0;
+    if (left <= 0) {
+      toast("Лимит исчерпан!");
       return;
     }
 
@@ -497,25 +505,51 @@ async function takeShot(){
     canvas.height = v.videoHeight;
     const ctx = canvas.getContext("2d");
 
-    if(cameraFacing === "user"){
+    // ПРИМЕНЯЕМ ФИЛЬТР К ХОЛСТУ
+    // activeFilter берется из того, что ты выбрал в меню фильтров
+    ctx.filter = typeof activeFilter !== 'undefined' ? activeFilter : 'none';
+
+    if (cameraFacing === "user") {
       ctx.save();
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
       ctx.restore();
-    }else{
+    } else {
       ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
     }
 
     const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.92));
-    if(!blob){
+    if (!blob) {
       toast("Не удалось сделать фото");
       return;
     }
-    await uploadFile(new File([blob], "camera.jpg", { type:"image/jpeg" }));
-  }catch(e){
+
+    // Блокируем кнопку на время загрузки, чтобы не нафоткали лишнего
+    $("camShot").disabled = true;
+    $("camShot").style.opacity = "0.5";
+
+    const ok = await uploadFile(new File([blob], "camera.jpg", { type: "image/jpeg" }));
+    
+    if (ok) {
+      // Если загрузка прошла успешно — уменьшаем счетчик на экране
+      left--;
+      badge.textContent = left;
+      if (left <= 2) badge.style.color = "#ff4b4b";
+      
+      toast("Фото загружено!");
+      // Можно закрыть камеру после удачного снимка:
+      // stopCamera(); 
+    }
+
+    $("camShot").disabled = false;
+    $("camShot").style.opacity = "1";
+
+  } catch (e) {
     console.log(e);
-    toast("Ошибка камеры — жми «Фолбэк»");
+    toast("Ошибка при съемке");
+    $("camShot").disabled = false;
+    $("camShot").style.opacity = "1";
   }
 }
 
@@ -926,6 +960,48 @@ $("fullZoom").onclick = toggleZoom;
 for (const id of ["cameraModal","manageModal","membersModal","shareModal"]){
   $(id).onclick = (e) => { if(e.target === $(id)) $(id).classList.remove("show"); };
 }
+
+// --- ЛОГИКА КАМЕРЫ: ФИЛЬТРЫ И ЛИМИТЫ ---
+
+let activeFilter = 'none';
+
+// 1. Открытие/закрытие меню
+if ($("camFiltersBtn")) {
+    $("camFiltersBtn").onclick = (e) => {
+        e.stopPropagation(); // Чтобы не закрылся модал
+        $("filterMenu").classList.toggle("hidden");
+    };
+}
+
+// 2. Функция выбора фильтра (вызывается из HTML)
+window.setFilter = function(filterStr) {
+    activeFilter = filterStr;
+    const video = $("camVideo");
+    if (video) {
+        video.style.filter = filterStr; // Применяем к живому видео
+    }
+    
+    // Обновляем текст внизу
+    const label = $("filterNameLabel");
+    if (label) {
+        const names = {
+            'none': 'Оригинал',
+            'grayscale(1)': 'ЧБ',
+            'sepia(0.7)': 'Ретро',
+            'hue-rotate(90deg)': 'Холод',
+            'brightness(1.3) contrast(1.1)': 'Ярко'
+        };
+        label.textContent = "Фильтр: " + (names[filterStr] || "Активен");
+    }
+    $("filterMenu").classList.add("hidden");
+};
+
+// 3. Закрытие меню фильтров при клике мимо него
+$("cameraModal").addEventListener('click', (e) => {
+    if (!e.target.closest('#filterMenu') && !e.target.closest('#camFiltersBtn')) {
+        $("filterMenu").classList.add("hidden");
+    }
+});
 
 window.addEventListener("resize", () => {
   if($("fullModal").classList.contains("show")){
