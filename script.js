@@ -154,34 +154,51 @@ function showAlbumScreen(){
 }
 
 async function loadAlbums() {
-  const r = await fetch(`${API}/api/albums/${userId}`);
-  const albums = await r.json() || [];
-  
-  const activeList = albums.filter(a => !a.is_closed);
-  const archivedList = albums.filter(a => a.is_closed);
+  try {
+    const r = await fetch(`${API}/api/albums/${userId}`);
+    const albums = await r.json() || [];
+    
+    const container = document.getElementById("albumsList");
+    if (!container) return;
 
-  let html = activeList.map((a, i) => renderAlbumCard(a, i)).join("");
+    if (albums.length === 0) {
+      container.innerHTML = `<div class="glass p-4 rounded-2xl text-center opacity-50">Альбомов пока нет</div>`;
+      return;
+    }
 
-  // Если есть архивные, добавляем "Папку"
-  if (archivedList.length > 0) {
-    html += `
-      <div id="archiveFolderBtn" class="glass rounded-2xl p-4 btn flex items-center justify-between mt-4 border-dashed border-white/30" onclick="toggleArchive()">
-        <div class="flex items-center gap-3">
-          <span class="text-2xl">📁</span>
-          <div>
-            <div class="font-bold">Архивные альбомы</div>
-            <div class="text-[10px] opacity-60">${archivedList.length} шт.</div>
-          </div>
+    const activeList = albums.filter(a => !a.is_closed);
+    const archivedList = albums.filter(a => a.is_closed);
+
+    let html = activeList.map((a, i) => `
+      <div class="glass rounded-2xl p-4 btn flex items-center justify-between pop" onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
+        <div>
+          <div class="font-semibold">${escapeHtml(a.name)}</div>
+          <div class="text-xs opacity-50">${a.code}</div>
         </div>
-        <div id="archiveArrow" class="transition-transform">▼</div>
+        <div class="text-xl">→</div>
       </div>
-      <div id="archiveContent" class="hidden mt-2 flex flex-col gap-2">
-        ${archivedList.map((a, i) => renderAlbumCard(a, i, true)).join("")}
-      </div>
-    `;
-  }
+    `).join("");
 
-  $("albumsList").innerHTML = html || `<div class="text-center opacity-50 py-10">Тут пока пусто</div>`;
+    if (archivedList.length > 0) {
+      html += `
+        <div class="glass rounded-2xl p-4 btn flex items-center justify-between mt-4 border-dashed border-white/20" onclick="toggleArchive()">
+          <div class="flex items-center gap-3"><span>📁</span> <div><b>Архив</b> <span class="text-[10px] opacity-60">${archivedList.length}</span></div></div>
+          <div id="archiveArrow">▼</div>
+        </div>
+        <div id="archiveContent" class="hidden mt-2 flex flex-col gap-2">
+          ${archivedList.map(a => `
+            <div class="glass rounded-2xl p-3 opacity-60 flex justify-between" onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
+              <div class="text-sm">${escapeHtml(a.name)}</div>
+              <div class="text-xs italic">Закрыт</div>
+            </div>
+          `).join("")}
+        </div>`;
+    }
+    container.innerHTML = html;
+  } catch (e) {
+    console.error("Load error:", e);
+    document.getElementById("albumsList").innerHTML = "Ошибка загрузки данных.";
+  }
 }
 
 // Вспомогательная функция для отрисовки карточки
@@ -558,24 +575,15 @@ async function flipCamera(){
 }
 
 async function takeShot() {
-  // 1. Вибрация (Haptic Feedback) в момент нажатия
-  if (window.Telegram?.WebApp?.HapticFeedback) {
-    window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-  }
+// Вибрация
+    if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
 
-  try {
-    const v = $("camVideo");
-    if (!v || !v.videoWidth) {
-      toast("Камера не готова");
-      return;
-    }
-
-    // 2. Проверка лимита (используем наш счетчик из badge)
-    const badge = $("photoLimitBadge");
-    let left = parseInt(badge?.textContent) || 0;
-    if (left <= 0) {
-      toast("Лимит исчерпан! 🛑");
-      return;
+    const video = document.getElementById("camVideo");
+    // Считаем лимит напрямую из переменной, а не из текста на экране
+    const myPhotosCount = allPhotos.filter(p => String(p.user_id) === String(userId)).length;
+    if (myPhotosCount >= albumPhotoLimit) {
+        toast("Лимит фото исчерпан!");
+        return;
     }
 
     const canvas = $("camCanvas");
@@ -1265,3 +1273,16 @@ window.shareAlbum = function() {
         );
     }
 };
+
+// Вставь это в конец файла script.js
+document.addEventListener('click', (e) => {
+    const filtersBtn = e.target.closest('#camFiltersBtn');
+    const filterMenu = document.getElementById("filterMenu");
+    
+    if (filtersBtn) {
+        filterMenu.classList.toggle("hidden");
+        console.log("Фильтры нажаты"); // Для отладки
+    } else if (filterMenu && !e.target.closest('#filterMenu')) {
+        filterMenu.classList.add("hidden");
+    }
+});
