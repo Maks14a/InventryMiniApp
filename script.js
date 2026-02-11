@@ -28,6 +28,74 @@ async function joinToAlbum() {
   } catch (e) { console.error("Join error:", e); }
 }
 
+async function getAlbumDetails() {
+  try {
+    const r = await fetch(`${API}/api/album/${currentAlbumCode}`);
+    const d = await r.json();
+    if (r.ok) {
+      window.albumSettings = d; // Сохраняем лимиты и время
+      $("topTitle").textContent = d.name;
+      
+      // ТЗ: Применить дефолтный фильтр
+      if (d.default_filter && d.default_filter !== 'none') {
+        setFilter(d.default_filter); 
+      }
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function loadPhotos() {
+  // 1. Показываем состояние загрузки
+  $("photoGrid").innerHTML = "";
+  $("permBadge").textContent = "Синхронизация…";
+
+  try {
+    // 2. Запрос за фото и правами
+    const r = await fetch(`${API}/api/photos/${currentAlbumCode}?user_id=${userId}`);
+    const d = await r.json();
+
+    if (!r.ok) {
+      toast(d?.detail || "Ошибка доступа");
+      $("permBadge").textContent = "Заблокировано";
+      return;
+    }
+
+    // 3. Установка прав и Роли
+    currentPerms = d.perms || { is_owner: false, role: 'member' };
+    const badge = $("permBadge");
+    if (currentPerms.is_owner) badge.textContent = "👑 Владелец";
+    else if (currentPerms.role === 'moderator') badge.textContent = "🛡 Модератор";
+    else badge.textContent = "👤 Участник";
+
+    // 4. ЛОГИКА СЧЕТЧИКА (ТЗ: Ограничение фото для 1 человека)
+    // Берем лимит из настроек альбома (подгруженных в getAlbumDetails)
+    const totalLimit = window.albumSettings?.photo_limit || 15;
+    const items = d.items || [];
+    
+    // Считаем сколько фото загрузил ТЕКУЩИЙ юзер
+    const myPhotos = items.filter(p => p.uploaded_by == userId).length;
+    const left = totalLimit - myPhotos;
+    
+    const limitBadge = $("photoLimitBadge");
+    if (limitBadge) {
+      limitBadge.textContent = left > 0 ? left : 0;
+      limitBadge.style.color = left <= 0 ? "#ff4b4b" : "#4ade80";
+    }
+
+    // 5. Рендер сетки
+    albumPhotos = items.map(p => ({ url: p.url, uploaded_by: p.uploaded_by }));
+    $("photoGrid").innerHTML = items.map((p, i) => `
+      <div class="photo-tile pop" style="animation-delay:${i * 10}ms" onclick="openFullAtUrl('${p.url}')">
+        <img src="${p.url}" loading="lazy" />
+      </div>
+    `).join("");
+
+  } catch (e) {
+    console.error("Load error:", e);
+    toast("Ошибка сети");
+  }
+}
+
 // Запускаем регистрацию и загрузку
 if (currentAlbumCode) {
   joinToAlbum().then(() => {
@@ -120,6 +188,7 @@ async function loadAlbums() {
   `).join("");
 }
 
+
 window.openAlbum = async function(code, name){
   currentAlbumCode = code;
   currentAlbumName = name;
@@ -127,41 +196,7 @@ window.openAlbum = async function(code, name){
   await loadPhotos();
 }
 
-async function loadPhotos(){
-  // --- НОВЫЙ БЛОК: Авто-регистрация при входе ---
-  try {
-    await fetch(`${API}/api/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        album_code: currentAlbumCode,
-        user_id: userId,
-        username: tg.initDataUnsafe?.user?.username || '',
-        first_name: tg.initDataUnsafe?.user?.first_name || '',
-        last_name: tg.initDataUnsafe?.user?.last_name || ''
-      })
-    });
-  } catch (e) { console.error("Join error:", e); }
-  // --- КОНЕЦ БЛОКА ---
 
-  $("photoGrid").innerHTML = "";
-  $("permBadge").textContent = "Загрузка…";
-  $("uploadHint").textContent = "";
-
-  const r = await fetch(`${API}/api/photos/${currentAlbumCode}?user_id=${userId}`);
-  const d = await r.json();
-
-  if(!r.ok){
-    toast(d?.detail || "Ошибка загрузки");
-    currentPerms = {is_owner:false, can_upload:false, can_delete:false};
-    $("permBadge").textContent = "Нет доступа";
-    return;
-  }
-
-  // Дальше весь твой остальной код функции loadPhotos...
-  currentPerms = d.perms || {is_owner:false, can_upload:false, can_delete:false};
-  // ... и так далее до конца функции
-}
 
 // ===== FULLSCREEN SWIPE + ZOOM (без анимации перехода) =====
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
