@@ -1,145 +1,24 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const API = "https://api-eju8g7j209.amvera.io";
-const botUsername = "Iventry_Bot"; 
+const API = "https://bot13-iventry.amvera.io";
 
-const tgUserId = tg.initDataUnsafe?.user?.id;
+const tgUserId = tg.initDataUnsafe?.user?.id || 0;
 const isGuest = !tgUserId;
-const userId = tgUserId ? parseInt(tgUserId) : 112;
+const userId = tgUserId || 112;
 
 if (isGuest) document.getElementById("guestBanner").classList.remove("hidden");
 
-let currentAlbumCode = new URLSearchParams(window.location.search).get('code') 
-                   || tg.initDataUnsafe?.start_param 
-                   || "";
-
-async function joinToAlbum() {
-  if(!currentAlbumCode) return;
-  try {
-    await fetch(`${API}/api/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        album_code: currentAlbumCode,
-        user_id: userId,
-        username: tg.initDataUnsafe?.user?.username || '',
-        first_name: tg.initDataUnsafe?.user?.first_name || '',
-        last_name: tg.initDataUnsafe?.user?.last_name || ''
-      })
-    });
-  } catch (e) { console.error("Join error:", e); }
-}
-
-async function getAlbumDetails() {
-  try {
-    const r = await fetch(`${API}/api/album/${currentAlbumCode}`);
-    if (!r.ok) throw new Error("Альбом не найден");
-    const d = await r.json();
-    
-    currentAlbumName = d.name;
-    currentFilter = d.default_filter || 'none';
-    photoLimit = d.photo_limit || 10;
-    
-    const now = Math.floor(Date.now() / 1000);
-    const openAt = d.open_at_ts || 0;
-    
-    // Если время еще не пришло, просто пишем об этом, но не вешаем страницу
-    if (openAt > now) {
-        const diffMin = Math.ceil((openAt - now) / 60);
-        document.getElementById("topTitle").innerText = `Ждем ${diffMin} мин`;
-    } else {
-        document.getElementById("topTitle").innerText = d.name;
-    }
-    
-    await loadPhotos();
-  } catch (e) { 
-    console.error("Ошибка:", e);
-    document.getElementById("topTitle").innerText = "Ошибка входа";
-  }
-}
-
-async function checkUserPermissions() {
-    try {
-        const res = await fetch(`${API}/api/album/${currentAlbumCode}/member/${userId}`);
-        const data = await res.json();
-        
-        // Если роль - владелец или админ, показываем шестеренку настроек
-        if (data.role === 'owner' || data.role === 'admin') {
-            const menuBtn = document.getElementById("topMenuBtn");
-            if (menuBtn) menuBtn.classList.remove("hidden");
-            console.log("Доступ разрешен: ты " + data.role);
-        }
-    } catch (e) {
-        console.error("Ошибка проверки прав:", e);
-    }
-    // Найди эти строки и добавь checkUserPermissions() в конец
-    async function init() {
-        await joinToAlbum();
-        await getAlbumDetails();
-        await checkUserPermissions(); // Вот этот вызов ОБЯЗАТЕЛЬНО добавь
-    }
-
-    init();
-}
-
-// --- ЗАГРУЗКА И РЕНДЕР (ВСТАВЛЯЙ СЮДА) ---
-
-async function loadPhotos() {
-  const container = $("photosGrid");
-  if(!container) return;
-  
-  // Показываем скелетон/загрузку
-  container.innerHTML = '<div class="col-span-3 text-center opacity-50 py-10">Загрузка...</div>';
-  
-  try {
-    const r = await fetch(`${API}/api/photos/${currentAlbumCode}?user_id=${userId}`);
-    const d = await r.json();
-    
-    // Сохраняем данные
-    allPhotos = d.items || [];
-    currentPerms = d.perms || {};
-
-    if (allPhotos.length === 0) {
-      container.innerHTML = '<div class="col-span-3 text-center opacity-50 py-10">В альбоме пока нет фото</div>';
-    } else {
-      renderPhotos(allPhotos);
-    }
-  } catch (e) {
-    console.error("Load error:", e);
-    container.innerHTML = '<div class="col-span-3 text-center text-red-400 py-10">Ошибка загрузки</div>';
-  }
-}
-
-function renderPhotos(photos) {
-  const container = $("photosGrid");
-  if(!container) return;
-
-  const html = photos.map((p, i) => {
-    // ТА САМАЯ ЛОГИКА ПРИЗРАКОВ:
-    // Если в API пришло is_pending: true, добавляем класс и иконку
-    const isPending = p.is_pending === true;
-
-    return `
-      <div class="photo-tile ${isPending ? 'pending-photo' : ''}" onclick="openFull(${i})">
-        <img src="${p.url}" loading="lazy" />
-        ${isPending ? '<div class="pending-badge">⏳ Ожидает</div>' : ''}
-      </div>
-    `;
-  }).join('');
-  
-  container.innerHTML = html;
-}
-
-// Запускаем регистрацию и загрузку
-if (currentAlbumCode) {
-  joinToAlbum().then(() => {
-    loadPhotos();
-    getAlbumDetails();
-  });
-}
+let currentAlbumCode = "";
 let currentAlbumName = "";
-let currentPerms = { is_owner:false, can_upload:false, can_delete:false };
+let currentPerms = { 
+    role: 'viewer', 
+    is_owner: false, 
+    is_moderator: false, 
+    can_upload: false, 
+    can_delete_any: false,
+    is_opened: false 
+};
 
 let camStream = null;
 let cameraFacing = "environment";
@@ -195,83 +74,112 @@ function showAlbumScreen(){
 }
 
 async function loadAlbums() {
-  try {
-    const r = await fetch(`${API}/api/albums/${userId}`);
-    const albums = await r.json() || [];
-    
-    const container = document.getElementById("albumsList");
-    if (!container) return;
+  // Убрали return, теперь гость тоже идет в API
+  const r = await fetch(`${API}/api/albums/${userId}`);
+  const d = await r.json();
 
-    if (albums.length === 0) {
-      container.innerHTML = `<div class="glass p-4 rounded-2xl text-center opacity-50">Альбомов пока нет</div>`;
-      return;
-    }
-
-    const activeList = albums.filter(a => !a.is_closed);
-    const archivedList = albums.filter(a => a.is_closed);
-
-    let html = activeList.map((a, i) => `
-      <div class="glass rounded-2xl p-4 btn flex items-center justify-between pop" onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
-        <div>
-          <div class="font-semibold">${escapeHtml(a.name)}</div>
-          <div class="text-xs opacity-50">${a.code}</div>
-        </div>
-        <div class="text-xl">→</div>
-      </div>
-    `).join("");
-
-    if (archivedList.length > 0) {
-      html += `
-        <div class="glass rounded-2xl p-4 btn flex items-center justify-between mt-4 border-dashed border-white/20" onclick="toggleArchive()">
-          <div class="flex items-center gap-3"><span>📁</span> <div><b>Архив</b> <span class="text-[10px] opacity-60">${archivedList.length}</span></div></div>
-          <div id="archiveArrow">▼</div>
-        </div>
-        <div id="archiveContent" class="hidden mt-2 flex flex-col gap-2">
-          ${archivedList.map(a => `
-            <div class="glass rounded-2xl p-3 opacity-60 flex justify-between" onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
-              <div class="text-sm">${escapeHtml(a.name)}</div>
-              <div class="text-xs italic">Закрыт</div>
-            </div>
-          `).join("")}
-        </div>`;
-    }
-    container.innerHTML = html;
-  } catch (e) {
-    console.error("Load error:", e);
-    document.getElementById("albumsList").innerHTML = "Ошибка загрузки данных.";
+  const albums = d || [];
+  
+  if (albums.length === 0) {
+    $("albumsList").innerHTML = `
+      <div class="glass rounded-2xl p-4 btn pop text-center">
+        <div class="font-semibold">Альбомов пока нет</div>
+        <div class="text-xs opacity-70 mt-1">Тебя должны добавить в альбом по ID: ${userId}</div>
+      </div>`;
+    return;
   }
-}
 
-// Вспомогательная функция для отрисовки карточки
-function renderAlbumCard(a, i, isArchived = false) {
-  return `
-    <div class="glass rounded-2xl p-4 btn flex items-center justify-between pop ${isArchived ? 'opacity-70' : ''}"
+  $("albumsList").innerHTML = albums.map((a, i) => `
+    <div class="glass rounded-2xl p-4 btn flex items-center justify-between pop"
+         style="animation-delay:${i * 20}ms"
          onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
       <div>
-        <div class="font-semibold">${escapeHtml(a.name)} ${isArchived ? '🔒' : ''}</div>
-        <div class="text-xs opacity-50">${a.code}</div>
+        <div class="font-semibold">${escapeHtml(a.name)}</div>
+        <div class="text-xs opacity-70">${a.code}</div>
       </div>
       <div class="text-xl">→</div>
     </div>
-  `;
+  `).join("");
 }
-
-// Переключалка папки
-window.toggleArchive = function() {
-    const content = $("archiveContent");
-    const arrow = $("archiveArrow");
-    content.classList.toggle("hidden");
-    arrow.style.transform = content.classList.contains("hidden") ? "rotate(0deg)" : "rotate(180deg)";
-};
 
 window.openAlbum = async function(code, name){
   currentAlbumCode = code;
   currentAlbumName = name;
+
+  // 1. Сначала узнаем наши права и статус альбома (время открытия)
+  try {
+    const res = await fetch(`${API}/api/album/info?code=${code}&user_id=${userId}`);
+    const data = await res.json();
+    
+    // Обновляем глобальный объект прав (теперь там будет role, can_upload и т.д.)
+    currentPerms = data.perms; 
+  } catch (e) {
+    console.error("Ошибка получения прав:", e);
+  }
+
+  // 2. Показываем экран
   showAlbumScreen();
+
+  // 3. Блокируем или открываем кнопку камеры в зависимости от прав
+  const camBtn = $("cameraBtn");
+  if (camBtn) {
+    if (!currentPerms.can_upload) {
+      camBtn.style.opacity = "0.3";
+      camBtn.style.pointerEvents = "none";
+      // Если внутри кнопки есть текст (последний div), пишем что закрыто
+      const btnText = camBtn.querySelector("div:last-child");
+      if (btnText) btnText.textContent = "Закрыто";
+    } else {
+      camBtn.style.opacity = "1";
+      camBtn.style.pointerEvents = "auto";
+      const btnText = camBtn.querySelector("div:last-child");
+      if (btnText) btnText.textContent = "Камера";
+    }
+  }
+
+  // 4. Грузим фотки
   await loadPhotos();
 }
 
+async function loadPhotos(){
+  $("photoGrid").innerHTML = "";
+  $("permBadge").textContent = "Загрузка…";
+  $("uploadHint").textContent = "";
 
+  const r = await fetch(`${API}/api/photos/${currentAlbumCode}?user_id=${userId}`);
+  const d = await r.json();
+
+  if(!r.ok){
+    toast(d?.detail || "Ошибка загрузки");
+    currentPerms = {is_owner:false, can_upload:false, can_delete:false};
+    $("permBadge").textContent = "Нет доступа";
+    return;
+  }
+
+  currentPerms = d.perms || {is_owner:false, can_upload:false, can_delete:false};
+  const badge = currentPerms.is_owner
+    ? "👑 Владелец"
+    : (currentPerms.can_upload ? "✅ Участник (загрузка)" : "👀 Просмотр");
+  $("permBadge").textContent = badge;
+
+  $("uploadHint").textContent = currentPerms.can_upload
+    ? "Можно добавлять фото. Удаление: владелец/модератор/автор фото."
+    : "Нет прав на загрузку. Попроси владельца выдать доступ.";
+
+  const items = d.items || [];
+  albumPhotos = items.map(p => ({ url: p.url, uploaded_by: p.uploaded_by || 0 }));
+
+  // ✅ для 100+ фото — без pop-анимаций (иначе может дергать)
+  const animateTiles = items.length <= 60;
+
+  $("photoGrid").innerHTML = items.map((p,i) => `
+    <div class="photo-tile ${animateTiles ? "pop" : ""}"
+         style="${animateTiles ? `animation-delay:${i*12}ms` : ""}"
+         onclick="openFullAtUrl('${p.url}')">
+      <img src="${p.url}" loading="lazy" decoding="async" />
+    </div>
+  `).join("");
+}
 
 // ===== FULLSCREEN SWIPE + ZOOM (без анимации перехода) =====
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
@@ -615,16 +523,12 @@ async function flipCamera(){
   await startCamera();
 }
 
-async function takeShot() {
-// Вибрация
-    if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-
-    const video = document.getElementById("camVideo");
-    // Считаем лимит напрямую из переменной, а не из текста на экране
-    const myPhotosCount = allPhotos.filter(p => String(p.user_id) === String(userId)).length;
-    if (myPhotosCount >= albumPhotoLimit) {
-        toast("Лимит фото исчерпан!");
-        return;
+async function takeShot(){
+  try{
+    const v = $("camVideo");
+    if(!v || !v.videoWidth){
+      toast("Нет видео — жми «Фолбэк»");
+      return;
     }
 
     const canvas = $("camCanvas");
@@ -632,65 +536,25 @@ async function takeShot() {
     canvas.height = v.videoHeight;
     const ctx = canvas.getContext("2d");
 
-    // 3. Применяем выбранный фильтр к холсту
-    ctx.filter = (typeof activeFilter !== 'undefined') ? activeFilter : 'none';
-
-    // Обработка селфи-камеры (отзеркаливание)
-    if (cameraFacing === "user") {
+    if(cameraFacing === "user"){
       ctx.save();
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
       ctx.restore();
-    } else {
+    }else{
       ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
     }
 
-    // Превращаем в файл
     const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.92));
-    if (!blob) {
-      toast("Ошибка создания файла");
+    if(!blob){
+      toast("Не удалось сделать фото");
       return;
     }
-
-    // 4. Блокировка кнопки (защита от мульти-кликов)
-    const shotBtn = $("camShot");
-    shotBtn.disabled = true;
-    shotBtn.style.opacity = "0.4";
-    shotBtn.textContent = "⌛";
-
-    // 5. Отправка на сервер
-    const file = new File([blob], "camera.jpg", { type: "image/jpeg" });
-    const ok = await uploadFile(file);
-    
-    if (ok) {
-      // Уменьшаем счетчик лимита визуально
-      left--;
-      if (badge) {
-          badge.textContent = left;
-          if (left <= 2) badge.style.color = "#ff4b4b";
-      }
-      
-      toast("Фото улетело в альбом! 🚀");
-      
-      // Если хочешь, чтобы камера закрывалась после снимка — раскомментируй:
-      // stopCamera(); 
-    }
-
-    // Возвращаем кнопку в рабочее состояние
-    shotBtn.disabled = false;
-    shotBtn.style.opacity = "1";
-    shotBtn.textContent = "📸";
-
-  } catch (e) {
-    console.error("TakeShot Error:", e);
-    toast("Ошибка при съемке");
-    const shotBtn = $("camShot");
-    if(shotBtn) {
-        shotBtn.disabled = false;
-        shotBtn.style.opacity = "1";
-        shotBtn.textContent = "📸";
-    }
+    await uploadFile(new File([blob], "camera.jpg", { type:"image/jpeg" }));
+  }catch(e){
+    console.log(e);
+    toast("Ошибка камеры — жми «Фолбэк»");
   }
 }
 
@@ -759,6 +623,24 @@ async function shareByLink(){
     `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Зайди в мой альбом 👇")}`
   );
   toast("Выбери чат и отправь ссылку");
+}
+
+window.changeRole = async function(targetId, newRole) {
+  if (!confirm(`Изменить роль пользователя на ${newRole}?`)) return;
+
+  const fd = new FormData();
+  fd.append("album_code", currentAlbumCode);
+  fd.append("user_id", userId);
+  fd.append("target_id", targetId);
+  fd.append("new_role", newRole);
+
+  const res = await fetch(`${API}/api/member/set_role`, { method: "POST", body: fd });
+  if (res.ok) {
+    toast("Роль изменена ✅");
+    await openMembers(); // Обновляем список
+  } else {
+    toast("Ошибка при смене роли");
+  }
 }
 
 function sharePersonToBot(){
@@ -855,16 +737,69 @@ async function openMembers(){
   $("membersModal").classList.add("show");
 
   if(currentPerms.is_owner){
-    $("membersOwnerHint").textContent = "Ты владелец — можешь менять права прямо в карточках и удалять участников.";
+    $("membersOwnerHint").textContent = "👑 Ты владелец — можешь менять роли и кикать участников.";
     $("membersAddBox").style.display = "block";
     $("leaveBtnInside").classList.add("hidden");
-  }else{
-    $("membersOwnerHint").textContent = "Ты участник. Можешь выйти из альбома.";
+  } else if(currentPerms.is_moderator) {
+    $("membersOwnerHint").textContent = "🛠 Ты модератор — можешь кикать участников.";
+    $("membersAddBox").style.display = "none";
+    $("leaveBtnInside").classList.remove("hidden");
+  } else {
+    $("membersOwnerHint").textContent = "👤 Ты участник. Можешь выйти из альбома.";
     $("membersAddBox").style.display = "none";
     $("leaveBtnInside").classList.remove("hidden");
   }
 
   await loadMembers();
+}
+
+async function loadMembers(){
+  const list = $("membersList");
+  list.innerHTML = "<div class='text-center opacity-50 py-4'>Загрузка...</div>";
+
+  try {
+    const res = await fetch(`${API}/api/album/members?code=${currentAlbumCode}`);
+    const data = await res.json();
+    list.innerHTML = "";
+
+    const roleLabels = {
+      'owner': '👑 Владелец',
+      'moderator': '🛠 Модер',
+      'participant': '👤 Участник',
+      'viewer': '👁 Наблюдатель'
+    };
+
+    data.members.forEach(m => {
+      const item = document.createElement("div");
+      // Используем стили кнопок как в твоем исходном коде
+      item.className = "btn glass rounded-2xl px-4 py-3 flex flex-col gap-2 pointer-events-none";
+      
+      const label = roleLabels[m.role] || 'Участник';
+
+      item.innerHTML = `
+        <div class="flex items-center justify-between w-full">
+          <div class="flex flex-col text-left">
+            <div class="font-semibold text-sm">${m.username || 'Аноним'}</div>
+            <div class="text-[10px] opacity-60 uppercase tracking-tighter">${label}</div>
+          </div>
+          <div class="flex items-center gap-1 pointer-events-auto">
+            ${(currentPerms.is_owner || currentPerms.is_moderator) && m.role !== 'owner' && m.user_id != userId ? 
+              `<button onclick="kickMember(${m.user_id})" class="text-red-400 p-2 active:scale-90 transition-transform">❌</button>` : ''}
+          </div>
+        </div>
+        
+        ${currentPerms.is_owner && m.role !== 'owner' ? `
+          <div class="flex gap-2 mt-1 pointer-events-auto">
+            <button onclick="changeRole(${m.user_id}, 'moderator')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Сделать модером</button>
+            <button onclick="changeRole(${m.user_id}, 'participant')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Сделать участником</button>
+          </div>
+        ` : ''}
+      `;
+      list.appendChild(item);
+    });
+  } catch (e) {
+    list.innerHTML = "<div class='text-center text-red-400'>Ошибка загрузки</div>";
+  }
 }
 
 function memberCard(m, i){
@@ -1071,6 +1006,7 @@ $("shareLinkBtn").onclick = async () => { await shareByLink(); }
 $("sharePersonBtn").onclick = () => { sharePersonToBot(); }
 
 $("cameraClose").onclick = stopCamera;
+$("camFallback").onclick = cameraFallback;
 $("camShot").onclick = takeShot;
 $("camFlip").onclick = flipCamera;
 
@@ -1101,229 +1037,13 @@ for (const id of ["cameraModal","manageModal","membersModal","shareModal"]){
   $(id).onclick = (e) => { if(e.target === $(id)) $(id).classList.remove("show"); };
 }
 
-// --- ОБНОВЛЕННАЯ ЛОГИКА КАМЕРЫ: ФИЛЬТРЫ И ЛИМИТЫ (ПО ТЗ) ---
-
-let activeFilter = 'none';
-let albumPhotoLimit = 15; // По умолчанию, обновится из API
-
-// 1. Управление меню фильтров и закрытие при клике мимо
-if ($("cameraModal")) {
-    $("cameraModal").onclick = (e) => {
-        const filterMenu = $("filterMenu");
-        const filtersBtn = e.target.closest('#camFiltersBtn');
-        
-        if (filtersBtn) {
-            e.stopPropagation();
-            filterMenu.classList.toggle("hidden");
-        } else if (filterMenu && !e.target.closest('#filterMenu')) {
-            filterMenu.classList.add("hidden");
-        }
-    };
-}
-
-// 2. Функция применения фильтра (вызывается из кнопок в HTML)
-window.setFilter = function(filterStr) {
-    activeFilter = filterStr;
-    const video = $("camVideo");
-    if (video) video.style.filter = filterStr; 
-    
-    const label = $("filterNameLabel");
-    if (label) {
-        const names = {
-            'none': 'Оригинал',
-            'grayscale(1)': 'ЧБ',
-            'sepia(0.7)': 'Ретро',
-            'hue-rotate(90deg)': 'Холод',
-            'brightness(1.4)': 'Ярко'
-        };
-        label.textContent = "Фильтр: " + (names[filterStr] || "Стиль");
-    }
-    if ($("filterMenu")) $("filterMenu").classList.add("hidden");
-};
-
-// 3. Динамический счетчик лимита: Лимит - (мои загруженные фото)
-function updateLimitDisplay() {
-    const counterEl = $("photoLimitCounter");
-    const shutter = $("shutterBtn");
-    if (!counterEl) return;
-
-    // Фильтруем массив всех фото, оставляя только те, что загрузил текущий юзер
-    const myPhotosCount = allPhotos.filter(p => String(p.user_id) === String(userId)).length;
-    const remaining = albumPhotoLimit - myPhotosCount;
-    
-    // Обновляем цифру на экране
-    counterEl.textContent = remaining > 0 ? remaining : 0;
-    
-    // Если лимит исчерпан — блокируем кнопку съемки
-    if (shutter) {
-        if (remaining <= 0) {
-            shutter.style.opacity = "0.3";
-            shutter.style.pointerEvents = "none";
-            shutter.classList.add("grayscale");
-        } else {
-            shutter.style.opacity = "1";
-            shutter.style.pointerEvents = "auto";
-            shutter.classList.remove("grayscale");
-        }
-    }
-}
-
-// --- ПЕРЕОПРЕДЕЛЕНИЕ СИСТЕМНЫХ ФУНКЦИЙ ДЛЯ СВЯЗКИ С ЛИМИТОМ ---
-
-// Перехватываем получение данных альбома, чтобы забрать photo_limit
-const originalGetAlbumDetails = getAlbumDetails;
-getAlbumDetails = async function() {
-    try {
-        const r = await fetch(`${API}/api/album/${currentAlbumCode}`);
-        const d = await r.json();
-        if (r.ok) {
-            // Записываем лимит из базы в нашу переменную
-            albumPhotoLimit = d.photo_limit || 15;
-            
-            $("topTitle").textContent = d.name;
-            // Здесь можно добавить проверку на время открытия альбома в будущем
-            updateLimitDisplay();
-        }
-    } catch (e) { console.error("Details error:", e); }
-};
-
-// Перехватываем рендер фото, чтобы обновлять лимит при удалении/загрузке
-const originalRenderPhotos = renderPhotos;
-renderPhotos = function(photos) {
-    // Сначала вызываем старый добрый рендер карточек
-    originalRenderPhotos(photos);
-    // И сразу пересчитываем лимит (если фото удалили, массив allPhotos уменьшится)
-    updateLimitDisplay();
-};
-
-// --- СТАНДАРТНЫЕ ОБРАБОТЧИКИ И ЗАПУСК ---
-
 window.addEventListener("resize", () => {
-    if($("fullModal").classList.contains("show")){
-        renderFullSlides();
-    }
+  if($("fullModal").classList.contains("show")){
+    renderFullSlides();
+  }
 });
 
 attachFullGestures();
+
 showAlbumsScreen();
 loadAlbums();
-
-// Проверка: закрыт ли альбом по времени
-async function checkAlbumStatus(details) {
-    const isOwner = details.owner_id == userId;
-    const now = new Date();
-    // Время открытия из БД
-    const openAt = new Date(details.open_at);
-    // Рассчитываем время закрытия: открытие + длительность в часах
-    const closeAt = new Date(openAt.getTime() + details.close_duration * 60 * 60 * 1000);
-
-    const isClosed = now > closeAt;
-
-    // 1. Если время вышло — прячем кнопку камеры
-    if (isClosed) {
-        if ($("openCamBtn")) $("openCamBtn").classList.add("hidden");
-        // Можно вывести плашку, что альбом в архиве
-        toast("⌛ Съемка завершена. Альбом в архиве.");
-    }
-
-    const statusEl = document.getElementById("albumStatusLabel") || createStatusLabel();
-
-    if (isClosed) {
-        statusEl.innerHTML = `<span class="text-red-400">●</span> Архив (Съемка окончена)`;
-    } else {
-        // Рассчитываем остаток времени
-        const diff = closeAt - now;
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        statusEl.innerHTML = `<span class="text-green-400">●</span> Активен: осталось ${hours}ч ${mins}м`;
-    }
-
-    // Вспомогательная функция, если плашки еще нет в HTML
-    function createStatusLabel() {
-        const label = document.createElement("div");
-        label.id = "albumStatusLabel";
-        label.className = "text-[10px] uppercase font-bold tracking-widest opacity-70 mb-2 text-center";
-        const parent = $("photosGrid").parentNode;
-        parent.insertBefore(label, $("photosGrid"));
-        return label;
-    }
-
-    // 2. Меняем иконку в углу (Шестеренку на Корзину или Дверь)
-    const menuBtn = $("topMenuBtn");
-    if (menuBtn) {
-        menuBtn.innerHTML = isOwner ? "🗑️" : "🚪"; 
-        menuBtn.onclick = () => {
-            if (isOwner) {
-                if (confirm("Удалить этот альбом для всех?")) deleteAlbum(currentAlbumCode);
-            } else {
-                if (confirm("Выйти из этого альбома?")) leaveAlbum(currentAlbumCode);
-            }
-        };
-    }
-  // Внутри функции checkAlbumStatus в самом конце:
-  const downloadBtn = $("downloadBtn");
-  if (downloadBtn) {
-      // Показываем кнопку скачивания только владельцу
-      if (isOwner) downloadBtn.classList.remove("hidden");
-      else downloadBtn.classList.add("hidden");
-  }
-}
-
-// Функции запросов к API (которые мы добавили в api.py выше)
-async function deleteAlbum(code) {
-    await fetch(`${API}/api/delete_album/${code}?user_id=${userId}`, { method: 'DELETE' });
-    showAlbumsScreen(); // Возвращаемся на главный экран
-    loadAlbums();      // Обновляем список
-}
-
-async function leaveAlbum(code) {
-    await fetch(`${API}/api/leave/${code}?user_id=${userId}`, { method: 'POST' });
-    showAlbumsScreen();
-    loadAlbums();
-}
-
-async function downloadAllPhotos() {
-    const r = await fetch(`${API}/api/album/${currentAlbumCode}/download?user_id=${userId}`);
-    const data = await r.json();
-    
-    if (data.links && data.links.length > 0) {
-        // Создаем текстовый файл со всеми ссылками
-        const text = data.links.join('\n');
-        const blob = new Blob([text], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        
-        // Магия: заставляем браузер скачать этот файл
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `links_${currentAlbumCode}.txt`;
-        a.click();
-        
-        toast("📄 Файл со ссылками скачан!");
-    } else {
-        toast("Тут пока нечего скачивать");
-    }
-}
-
-window.shareAlbum = function() {
-    const shareUrl = `https://t.me/${botUsername}/app?startapp=${currentAlbumCode}`;
-    const text = `Залетай в альбом "${currentAlbumName}"! Снимаем всё здесь 📸`;
-    
-    if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.openTelegramLink(
-            `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`
-        );
-    }
-};
-
-// Вставь это в конец файла script.js
-document.addEventListener('click', (e) => {
-    const filtersBtn = e.target.closest('#camFiltersBtn');
-    const filterMenu = document.getElementById("filterMenu");
-    
-    if (filtersBtn) {
-        filterMenu.classList.toggle("hidden");
-        console.log("Фильтры нажаты"); // Для отладки
-    } else if (filterMenu && !e.target.closest('#filterMenu')) {
-        filterMenu.classList.add("hidden");
-    }
-});

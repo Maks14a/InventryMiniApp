@@ -163,34 +163,3 @@ input:checked + .tg-toggle.tg-red { background:rgba(239,68,68,.5); }
   object-fit: contain;
   pointer-events: none;
 }
-
-#filterMenu:not(.hidden) {
-  display: flex;
-  animation: slideUp 0.2s ease-out;
-}
-
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-/* Стиль для призрачных фото */
-.pending-photo img {
-  opacity: 0.5; /* Полупрозрачность */
-  filter: grayscale(0.8) blur(1px); /* Почти чб и легкий блюр */
-}
-
-.pending-badge {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 10px;
-  white-space: nowrap;
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.2);
-}
