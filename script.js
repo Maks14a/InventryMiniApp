@@ -3,9 +3,20 @@ tg.expand();
 
 const API = "https://api-eju8g7j209.amvera.io";
 
-const tgUserId = tg.initDataUnsafe?.user?.id || 0;
-const isGuest = !tgUserId;
-const userId = tgUserId || 112;
+// --- ЗАМЕНИТЬ НАЧАЛО ФАЙЛА ДО ПЕРЕМЕННОЙ isGuest ---
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+const API = "https://api-eju8g7j209.amvera.io";
+
+// Жёстко вытягиваем ID и проверяем его наличие
+const tgUserId = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : 0;
+const isGuest = (tgUserId === 0);
+const userId = tgUserId; // Убираем заглушку 112, она только путает базу данных
+
+console.log("Current User ID:", userId);
+// --- КОНЕЦ ЗАМЕНЫ ---
 
 if (isGuest) document.getElementById("guestBanner").classList.remove("hidden");
 
