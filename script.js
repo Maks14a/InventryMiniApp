@@ -63,8 +63,8 @@ function toast(msg){
 }
 
 function escapeHtml(s){
-  return (s||"").replace(/[&<>"']/g, m => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;","'":"&quot;","'":"&#039;"
+  return (s||"").replace(/[&<>"\']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\'":"&quot;","\'":"&#039;"
   })[m]);
 }
 
