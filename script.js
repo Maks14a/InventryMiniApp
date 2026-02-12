@@ -1,7 +1,7 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const API = "https://bot13-iventry.amvera.io";
+const API = "https://api-eju8g7j209.amvera.io";
 
 const tgUserId = tg.initDataUnsafe?.user?.id || 0;
 const isGuest = !tgUserId;
