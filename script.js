@@ -75,9 +75,7 @@ function showAlbumScreen(){
 
 async function loadAlbums() {
   // Убрали return, теперь гость тоже идет в API
-  const r = await fetch(`${API}/api/albums/${userId}`);
-  const d = await r.json();
-
+  const res = await fetch(`${API}/api/albums/${userId}`);  const d = await r.json();
   const albums = d || [];
   
   if (albums.length === 0) {
@@ -105,39 +103,57 @@ async function loadAlbums() {
 window.openAlbum = async function(code, name){
   currentAlbumCode = code;
   currentAlbumName = name;
+  
+  // 1. Сразу сбрасываем состояние кнопок (на всякий случай)
+  const camBtn = $("cameraBtn");
+  const settingsBtn = $("topMenuBtn");
+  
+  // Показываем экран альбома мгновенно
+  showAlbumScreen();
+  $("topTitle").textContent = name;
 
-  // 1. Сначала узнаем наши права и статус альбома (время открытия)
   try {
-    const res = await fetch(`${API}/api/album/info?code=${code}&user_id=${userId}`);
+    // 2. Стучимся к "Апи-папе" по твоему новому адресу (через слэши)
+    const res = await fetch(`${API}/api/album/info/${code}/${userId}`);
     const data = await res.json();
     
-    // Обновляем глобальный объект прав (теперь там будет role, can_upload и т.д.)
-    currentPerms = data.perms; 
-  } catch (e) {
-    console.error("Ошибка получения прав:", e);
-  }
+    if (data.perms) {
+      currentPerms = data.perms;
+      
+      // 3. УПРАВЛЕНИЕ КНОПКОЙ КАМЕРЫ (Время открытия)
+      if (!currentPerms.can_upload) {
+        // Если еще закрыто
+        camBtn.style.opacity = "0.3";
+        camBtn.style.pointerEvents = "none";
+        // Проверяем, есть ли внутри текст, и меняем его
+        const btnLabel = camBtn.querySelector("div:last-child");
+        if(btnLabel) btnLabel.textContent = "Закрыто";
+      } else {
+        // Если уже открыто
+        camBtn.style.opacity = "1";
+        camBtn.style.pointerEvents = "auto";
+        const btnLabel = camBtn.querySelector("div:last-child");
+        if(btnLabel) btnLabel.textContent = "Камера";
+      }
 
-  // 2. Показываем экран
-  showAlbumScreen();
+      // 4. УПРАВЛЕНИЕ НАСТРОЙКАМИ (Права доступа)
+      // Если ты Владелец или Модер — показываем шестеренку, иначе прячем
+      if (currentPerms.is_owner || currentPerms.is_moderator) {
+        settingsBtn.classList.remove("hidden");
+      } else {
+        settingsBtn.classList.add("hidden");
+      }
 
-  // 3. Блокируем или открываем кнопку камеры в зависимости от прав
-  const camBtn = $("cameraBtn");
-  if (camBtn) {
-    if (!currentPerms.can_upload) {
-      camBtn.style.opacity = "0.3";
-      camBtn.style.pointerEvents = "none";
-      // Если внутри кнопки есть текст (последний div), пишем что закрыто
-      const btnText = camBtn.querySelector("div:last-child");
-      if (btnText) btnText.textContent = "Закрыто";
-    } else {
-      camBtn.style.opacity = "1";
-      camBtn.style.pointerEvents = "auto";
-      const btnText = camBtn.querySelector("div:last-child");
-      if (btnText) btnText.textContent = "Камера";
+      console.log(`Твоя роль в альбоме: ${currentPerms.role}`);
     }
+  } catch (e) {
+    console.error("Ошибка при получении инфы об альбоме:", e);
+    // Если сервер упал, по дефолту даем смотреть, но не даем камеру
+    camBtn.style.opacity = "0.3";
+    settingsBtn.classList.add("hidden");
   }
 
-  // 4. Грузим фотки
+  // 5. Грузим фотографии в галерею
   await loadPhotos();
 }
 
