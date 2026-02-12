@@ -76,18 +76,12 @@ function showAlbumScreen(){
 async function loadAlbums(){
   const list = $("albumList");
   if (!list) return;
-  
   list.innerHTML = "<div class='text-center opacity-50 py-10'>Загрузка...</div>";
 
   try {
-    const url = `${API}/api/albums/${userId}`;
-    console.log("Запрос альбомов по адресу:", url); // Увидишь в консоли, куда лезет код
-    
-    const res = await fetch(url);
+    // Стучимся по новому адресу
+    const res = await fetch(`${API}/api/albums/${userId}`);
     const data = await res.json();
-    
-    console.log("Получены данные от сервера:", data); // Увидишь свой список из 3-х альбомов
-    
     list.innerHTML = "";
 
     if(!data || data.length === 0){
@@ -98,11 +92,10 @@ async function loadAlbums(){
     data.forEach(a => {
       const card = document.createElement("div");
       card.className = "btn glass rounded-3xl p-5 flex items-center justify-between mb-3 w-full";
-      // Обрати внимание: тут a.code (это твой 553b7bbb и т.д.)
-      card.onclick = () => window.openAlbum(a.code, a.name);
+      card.onclick = () => openAlbum(a.code, a.name);
       card.innerHTML = `
         <div class="flex items-center gap-4 text-left">
-          <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl">🖼</div>
+          <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl shadow-inner">🖼</div>
           <div>
             <div class="font-bold text-lg leading-tight">${a.name}</div>
             <div class="text-xs opacity-50 uppercase tracking-widest">${a.role === 'owner' ? 'Создатель' : 'Участник'}</div>
@@ -113,7 +106,6 @@ async function loadAlbums(){
       list.appendChild(card);
     });
   } catch(e) {
-    console.error("Ошибка загрузки списка:", e);
     list.innerHTML = "<div class='text-center text-red-400 py-10'>Ошибка связи</div>";
   }
 }
@@ -121,57 +113,32 @@ async function loadAlbums(){
 window.openAlbum = async function(code, name){
   currentAlbumCode = code;
   currentAlbumName = name;
-  
-  // 1. Сразу сбрасываем состояние кнопок (на всякий случай)
-  const camBtn = $("cameraBtn");
-  const settingsBtn = $("topMenuBtn");
-  
-  // Показываем экран альбома мгновенно
   showAlbumScreen();
   $("topTitle").textContent = name;
 
   try {
-    // 2. Стучимся к "Апи-папе" по твоему новому адресу (через слэши)
     const res = await fetch(`${API}/api/album/info/${code}/${userId}`);
     const data = await res.json();
-    
     if (data.perms) {
       currentPerms = data.perms;
-      
-      // 3. УПРАВЛЕНИЕ КНОПКОЙ КАМЕРЫ (Время открытия)
+      const camBtn = $("cameraBtn");
+      // Блокируем камеру если нельзя
       if (!currentPerms.can_upload) {
-        // Если еще закрыто
         camBtn.style.opacity = "0.3";
         camBtn.style.pointerEvents = "none";
-        // Проверяем, есть ли внутри текст, и меняем его
-        const btnLabel = camBtn.querySelector("div:last-child");
-        if(btnLabel) btnLabel.textContent = "Закрыто";
       } else {
-        // Если уже открыто
         camBtn.style.opacity = "1";
         camBtn.style.pointerEvents = "auto";
-        const btnLabel = camBtn.querySelector("div:last-child");
-        if(btnLabel) btnLabel.textContent = "Камера";
       }
-
-      // 4. УПРАВЛЕНИЕ НАСТРОЙКАМИ (Права доступа)
-      // Если ты Владелец или Модер — показываем шестеренку, иначе прячем
+      // Прячем настройки если ты не админ
       if (currentPerms.is_owner || currentPerms.is_moderator) {
-        settingsBtn.classList.remove("hidden");
+        $("topMenuBtn").classList.remove("hidden");
       } else {
-        settingsBtn.classList.add("hidden");
+        $("topMenuBtn").classList.add("hidden");
       }
-
-      console.log(`Твоя роль в альбоме: ${currentPerms.role}`);
     }
-  } catch (e) {
-    console.error("Ошибка при получении инфы об альбоме:", e);
-    // Если сервер упал, по дефолту даем смотреть, но не даем камеру
-    camBtn.style.opacity = "0.3";
-    settingsBtn.classList.add("hidden");
-  }
+  } catch (e) { console.error(e); }
 
-  // 5. Грузим фотографии в галерею
   await loadPhotos();
 }
 
