@@ -73,31 +73,49 @@ function showAlbumScreen(){
   $("topMenuBtn").onclick = () => openManage();
 }
 
-async function loadAlbums() {
-  // Убрали return, теперь гость тоже идет в API
-  const res = await fetch(`${API}/api/albums/${userId}`);  const d = await r.json();
-  const albums = d || [];
+async function loadAlbums(){
+  const list = $("albumList");
+  if (!list) return;
   
-  if (albums.length === 0) {
-    $("albumsList").innerHTML = `
-      <div class="glass rounded-2xl p-4 btn pop text-center">
-        <div class="font-semibold">Альбомов пока нет</div>
-        <div class="text-xs opacity-70 mt-1">Тебя должны добавить в альбом по ID: ${userId}</div>
-      </div>`;
-    return;
-  }
+  list.innerHTML = "<div class='text-center opacity-50 py-10'>Загрузка...</div>";
 
-  $("albumsList").innerHTML = albums.map((a, i) => `
-    <div class="glass rounded-2xl p-4 btn flex items-center justify-between pop"
-         style="animation-delay:${i * 20}ms"
-         onclick="openAlbum('${a.code}','${escapeHtml(a.name)}')">
-      <div>
-        <div class="font-semibold">${escapeHtml(a.name)}</div>
-        <div class="text-xs opacity-70">${a.code}</div>
-      </div>
-      <div class="text-xl">→</div>
-    </div>
-  `).join("");
+  try {
+    const url = `${API}/api/albums/${userId}`;
+    console.log("Запрос альбомов по адресу:", url); // Увидишь в консоли, куда лезет код
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    console.log("Получены данные от сервера:", data); // Увидишь свой список из 3-х альбомов
+    
+    list.innerHTML = "";
+
+    if(!data || data.length === 0){
+      list.innerHTML = "<div class='text-center opacity-30 py-10'>Альбомов пока нет</div>";
+      return;
+    }
+
+    data.forEach(a => {
+      const card = document.createElement("div");
+      card.className = "btn glass rounded-3xl p-5 flex items-center justify-between mb-3 w-full";
+      // Обрати внимание: тут a.code (это твой 553b7bbb и т.д.)
+      card.onclick = () => window.openAlbum(a.code, a.name);
+      card.innerHTML = `
+        <div class="flex items-center gap-4 text-left">
+          <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl">🖼</div>
+          <div>
+            <div class="font-bold text-lg leading-tight">${a.name}</div>
+            <div class="text-xs opacity-50 uppercase tracking-widest">${a.role === 'owner' ? 'Создатель' : 'Участник'}</div>
+          </div>
+        </div>
+        <div class="opacity-30">→</div>
+      `;
+      list.appendChild(card);
+    });
+  } catch(e) {
+    console.error("Ошибка загрузки списка:", e);
+    list.innerHTML = "<div class='text-center text-red-400 py-10'>Ошибка связи</div>";
+  }
 }
 
 window.openAlbum = async function(code, name){
