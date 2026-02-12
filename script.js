@@ -3,22 +3,25 @@ tg.expand();
 
 const API = "https://api-eju8g7j209.amvera.io";
 
-// --- ЗАМЕНИТЬ НАЧАЛО ФАЙЛА ДО ПЕРЕМЕННОЙ isGuest ---
+// --- НАЧАЛО ФАЙЛА ---
+// --- НАЧАЛО ФАЙЛА ---
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
 const API = "https://api-eju8g7j209.amvera.io";
 
-// Жёстко вытягиваем ID и проверяем его наличие
-const tgUserId = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : 0;
-const isGuest = (tgUserId === 0);
-const userId = tgUserId; // Убираем заглушку 112, она только путает базу данных
+// Берем ID из телеграма. Если мы в браузере (тест), будет 0
+const tgUserId = tg.initDataUnsafe?.user?.id || 0;
+const userId = tgUserId; 
 
-console.log("Current User ID:", userId);
+// Если ID нет (открыли просто в браузере), покажем баннер
+if (!userId) {
+    document.getElementById("guestBanner")?.classList.remove("hidden");
+}
+
+console.log("WebApp loaded. UserID:", userId);
 // --- КОНЕЦ ЗАМЕНЫ ---
-
-if (isGuest) document.getElementById("guestBanner").classList.remove("hidden");
 
 let currentAlbumCode = "";
 let currentAlbumName = "";
