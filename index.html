@@ -1,225 +1,159 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Iventry Album</title>
-  
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Iventry Albums</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root {
+      --bg-color: #1a1a1a;
+      --dur: 0.2s;
+      --dur2: 0.3s;
+      --e: cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    body { background-color: var(--bg-color); color: white; }
+    .btn { transition: all var(--dur) var(--e); }
+    .btn:active { transform: scale(0.95); opacity: 0.8; }
+    .glass { background-color: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .hidden { display: none; }
+    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 50; opacity: 0; pointer-events: none; transition: all var(--dur2) var(--e); }
+    .modal.show { opacity: 1; pointer-events: auto; }
+    .modal-content { transform: translateY(20px); transition: all var(--dur2) var(--e); }
+    .modal.show .modal-content { transform: translateY(0); }
+    .photo-tile { aspect-ratio: 1/1; overflow: hidden; border-radius: 1rem; }
+    .photo-tile img { width: 100%; height: 100%; object-fit: cover; transition: all var(--dur) var(--e); }
+    .photo-tile:active img { transform: scale(1.1); }
+    @keyframes pop-in { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .pop { animation: pop-in var(--dur2) var(--e) backwards; }
+
+    #fullViewer { touch-action: none; }
+    .fullSlide { position: absolute; top:0; left:0; width:100%; height:100%; display: flex; align-items: center; justify-content: center; transition: transform var(--dur2) var(--e); }
+    .fullImg { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .fullSlide[data-pos="prev"] { transform: translateX(-100%); }
+    .fullSlide[data-pos="cur"] { transform: translateX(0); }
+    .fullSlide[data-pos="next"] { transform: translateX(100%); }
+  </style>
 </head>
+<body class="p-4 font-sans antialiased">
 
-<body class="h-screen overflow-hidden">
-  <div class="h-full flex flex-col">
-
-    <div class="px-4 pt-4 pb-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div class="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center shadow-soft">📸</div>
-          <div>
-            <div class="text-sm opacity-70 leading-none">Iventry</div>
-            <div id="topTitle" class="font-bold text-lg leading-tight">Альбомы</div>
-          </div>
-        </div>
-        <button id="topMenuBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">⚙️</button>
-      </div>
-      <div id="guestBanner" class="hidden mt-2 text-xs opacity-70">
-        Ты открыт как <b>гость</b>. Для нормальной работы открой мини-апп внутри Telegram.
-      </div>
-    </div>
-
-    <div id="screenAlbums" class="flex-1 overflow-y-auto px-4 pb-24">
-      <div class="mt-2 text-sm opacity-70">Твои альбомы и расшаренные</div>
-      <div id="albumsList" class="mt-4 grid gap-3"></div>
-    </div>
-
-    <div id="screenAlbum" class="hidden flex-1 flex flex-col overflow-hidden">
-      <div class="px-4 pb-3 flex items-center justify-between">
-        <button id="backBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">← Назад</button>
-        <div id="permBadge" class="text-xs px-3 py-2 rounded-2xl bg-white/10"></div>
-        <div class="w-24"></div>
-      </div>
-
-      <div id="photoGrid" class="flex-1 overflow-y-auto px-2"></div>
-
-      <div class="glass p-4 rounded-t-3xl shadow-soft sheet" style="opacity:1;transform:none">
-        <div class="flex items-center justify-between gap-3">
-          <button id="galleryBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">🖼 Галерея</button>
-          <button id="cameraBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">📷 Камера</button>
-          <button id="shareBtnBottom" class="btn glass flex-1 py-3 rounded-2xl text-sm text-blue-200">📤 Поделиться</button>
-        </div>
-        <div id="uploadHint" class="mt-2 text-xs opacity-70"></div>
-      </div>
-    </div>
-
+  <!-- === TOP BAR === -->
+  <div id="topBar" class="fixed top-0 left-0 right-0 p-4 flex items-center justify-between z-10 glass">
+    <button id="backBtn" class="btn p-2 -ml-2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <h1 id="topTitle" class="font-bold text-xl text-center">Альбомы</h1>
+    <button id="topMenuBtn" class="btn p-2 -mr-2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
   </div>
 
-  <div id="fullModal" class="modal items-center justify-center p-4">
-    <div class="w-full max-w-3xl relative centerCard">
-      <div class="fullbar">
-        <button id="fullZoom" class="mini btn px-3 py-2 rounded-2xl text-sm">🔍</button>
-        <button id="fullDownload" class="mini btn px-3 py-2 rounded-2xl text-sm">⬇️</button>
-        <button id="fullDelete" class="mini btn px-3 py-2 rounded-2xl text-sm hidden">🗑</button>
-        <button id="fullClose" class="mini btn px-3 py-2 rounded-2xl text-sm">✕</button>
-      </div>
+  <div id="guestBanner" class="hidden fixed top-0 left-0 right-0 p-4 text-center bg-yellow-600/80 backdrop-filter backdrop-blur-sm z-40">
+    ⚠️ Ты смотришь как гость. Для полного доступа открой в Telegram.
+  </div>
 
-      <div id="fullViewer" class="w-full">
-        <div id="fullTrack"></div>
-      </div>
+  <main class="pt-16">
+    <!-- === ALBUMS LIST SCREEN === -->
+    <div id="screenAlbums">
+      <div id="albumsList" class="flex flex-col"></div>
+    </div>
 
-      <div class="mt-2 text-xs opacity-70 px-1">
-        Свайп — листать. Двойной тап / 🔍 — зум. Пинч — масштаб.
+    <!-- === ALBUM SCREEN === -->
+    <div id="screenAlbum" class="hidden">
+      <div class="text-center text-sm opacity-50 mb-3">
+        <span id="permBadge"></span> • <span id="uploadHint"></span>
       </div>
+      <div id="photoGrid" class="grid grid-cols-3 gap-1"></div>
+    </div>
+  </main>
+
+  <!-- === BOTTOM BAR === -->
+  <div class="fixed bottom-0 left-0 right-0 p-4 flex justify-center items-center gap-4 glass z-20">
+    <button id="galleryBtn" class="btn bg-white/10 w-16 h-16 rounded-full flex items-center justify-center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+    <button id="cameraBtn" class="btn bg-blue-500 w-20 h-20 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+    <button id="shareBtnBottom" class="btn bg-white/10 w-16 h-16 rounded-full flex items-center justify-center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+  </div>
+
+  <!-- === TOAST NOTIFICATION === -->
+  <div id="toast" class="hidden fixed bottom-28 left-1/2 -translate-x-1/2 bg-black/80 text-white text-sm px-4 py-2 rounded-full z-50 whitespace-nowrap"></div>
+
+  <!-- === MODALS === -->
+  
+  <!-- Share Modal -->
+  <div id="shareModal" class="modal">
+    <div class="modal-content absolute bottom-0 left-0 right-0 p-5 pt-6 bg-gray-800 rounded-t-3xl">
+        <button id="shareClose" class="absolute top-4 right-4 text-white/50 btn">✖</button>
+        <h2 class="font-bold text-xl mb-4">Пригласить в альбом</h2>
+        
+        <div class="text-sm opacity-70 mb-4">Приглашенные получат роль «Участник» и смогут загружать фото. Назначить модератором можно будет позже в списке участников.</div>
+
+        <div class="bg-black/20 p-4 rounded-2xl mb-3">
+            <label class="font-semibold block mb-2">По ссылке</label>
+            <div class="flex items-center gap-2 mb-2">
+                <label for="shareMaxUses" class="text-sm opacity-60">Лимит:</label>
+                <input id="shareMaxUses" type="number" value="20" class="w-20 bg-white/10 rounded-lg px-2 py-1 text-center">
+                <button id="shareNoLimit" class="text-sm bg-white/10 px-3 py-1 rounded-lg">∞</button>
+            </div>
+            <button id="shareLinkBtn" class="w-full btn bg-blue-500 text-white font-bold py-3 rounded-xl">Создать и отправить ссылку</button>
+        </div>
     </div>
   </div>
 
-  <div id="cameraModal" class="modal items-center justify-center p-4">
-    <div class="w-full max-w-xl glass rounded-3xl p-4 shadow-soft centerCard">
-      <div class="flex items-center justify-between">
-        <div class="font-bold">📷 Камера</div>
-        <div class="flex items-center gap-2">
-          <button id="camFlip" class="btn glass px-3 py-2 rounded-2xl">🔄</button>
-          <button id="cameraClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
-        </div>
-      </div>
-
-      <div class="mt-3 rounded-2xl overflow-hidden bg-black/60">
-        <video id="camVideo" playsinline autoplay muted class="w-full h-[52vh] object-cover"></video>
-      </div>
-
-      <div class="mt-3 flex gap-2">
-        <button id="camShot" class="btn glass flex-1 py-3 rounded-2xl">📸 Снять</button>
-        <button id="camFallback" class="btn glass px-4 py-3 rounded-2xl">🗂 Фолбэк</button>
-      </div>
-
+  <!-- Camera Modal -->
+  <div id="cameraModal" class="modal bg-black">
+      <video id="camVideo" class="w-full h-full object-cover"></video>
       <canvas id="camCanvas" class="hidden"></canvas>
-      <div class="mt-2 text-xs opacity-70">
-        Если чёрный экран — нажми 🔄 или «Фолбэк».
+      <div class="absolute top-5 right-5 z-10">
+          <button id="cameraClose" class="btn text-white text-2xl w-12 h-12 bg-white/10 rounded-full">✖</button>
       </div>
-    </div>
+      <div class="absolute bottom-5 left-5 right-5 z-10 flex justify-between items-center">
+          <button id="camFallback" class="btn text-white/80 bg-white/10 px-4 py-2 rounded-full">Галерея</button>
+          <button id="camShot" class="btn w-20 h-20 bg-white rounded-full border-4 border-black/20"></button>
+          <button id="camFlip" class="btn text-white/80 bg-white/10 p-3 rounded-full"><svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M16 4.41L14.59 3L12 5.59L9.41 3L8 4.41L10.59 7L8 9.59L9.41 11L12 8.41L14.59 11L16 9.59L13.41 7L16 4.41M12 1A11 11 0 0 1 23 12A11 11 0 0 1 12 23A11 11 0 0 1 1 12A11 11 0 0 1 12 1M3 12a9 9 0 0 0 5.66 8.44L17.7 4.2A8.91 8.91 0 0 0 12 3a9 9 0 0 0-9 9Z"/></svg></button>
+      </div>
   </div>
 
-  <div id="shareModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft sheet">
-      <div class="flex items-center justify-between">
-        <div class="font-bold">📤 Поделиться</div>
-        <button id="shareClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
-      </div>
-
-      <div class="mt-3 text-sm font-semibold">Права по ссылке (просмотр всегда есть)</div>
-
-      <div class="mt-2 grid gap-2">
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
-          <div>
-            <div class="font-semibold">⬆️ Загрузка</div>
-            <div class="text-xs opacity-70">Можно добавлять фото</div>
+  <!-- Manage Modal -->
+  <div id="manageModal" class="modal">
+      <div class="modal-content absolute bottom-0 left-0 right-0 p-5 pt-6 bg-gray-800 rounded-t-3xl">
+          <button id="manageClose" class="absolute top-4 right-4 text-white/50 btn">✖</button>
+          <h2 class="font-bold text-xl mb-4">Управление альбомом</h2>
+          <div class="flex flex-col gap-2">
+              <button id="renameBtn" class="btn bg-white/10 w-full text-left p-4 rounded-xl">✏️ Переименовать альбом</button>
+              <button id="membersBtn" class="btn bg-white/10 w-full text-left p-4 rounded-xl">👥 Участники и роли</button>
+              <button id="leaveBtn" class="btn bg-yellow-600/20 text-yellow-300 w-full text-left p-4 rounded-xl mt-4">🚪 Выйти из альбома</button>
+              <button id="deleteAlbumBtn" class="btn bg-red-600/20 text-red-300 w-full text-left p-4 rounded-xl mt-4">🗑 Удалить альбом</button>
           </div>
-          <div class="flex items-center gap-3">
-            <input id="shareCanUpload" type="checkbox" class="sr-only" checked>
-            <span class="tg-toggle tg-green"><span class="dot"></span></span>
-          </div>
-        </label>
-
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
-          <div>
-            <div class="font-semibold">🗑 Удаление</div>
-            <div class="text-xs opacity-70">Можно удалять фото</div>
-          </div>
-          <div class="flex items-center gap-3">
-            <input id="shareCanDelete" type="checkbox" class="sr-only">
-            <span class="tg-toggle tg-red"><span class="dot"></span></span>
-          </div>
-        </label>
       </div>
-
-      <div class="mt-4 text-sm font-semibold">Сколько людей смогут зайти</div>
-      <div class="mt-2 flex gap-2">
-        <input id="shareMaxUses" class="flex-1 px-4 py-3 rounded-2xl bg-black/40 outline-none btn"
-               placeholder="Например 20 (0 = без лимита)" value="20">
-        <button id="shareNoLimit" class="btn glass px-4 py-3 rounded-2xl">∞</button>
-      </div>
-      <div class="mt-2 text-xs opacity-70">0 = без лимита. Ссылка действует 7 дней.</div>
-
-      <div class="mt-4 grid gap-2">
-        <button id="shareLinkBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">🔗 Создать ссылку и отправить</button>
-        <button id="sharePersonBtn" class="btn glass w-full py-3 rounded-2xl">👤 Добавить человека через Telegram</button>
-      </div>
-    </div>
   </div>
 
-  <div id="manageModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft sheet">
-      <div class="flex items-center justify-between">
-        <div class="font-bold">⚙️ Настройки</div>
-        <button id="manageClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
-      </div>
-
-      <div class="mt-3 grid gap-2">
-        <button id="renameBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">✏️ Переименовать</button>
-        <button id="membersBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">👥 Участники</button>
-        <button id="leaveBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4 text-orange-200">🚪 Выйти из альбома</button>
-        <button id="deleteAlbumBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4 text-red-300">🗑 Удалить альбом</button>
-      </div>
-
-      <div class="mt-3 text-xs opacity-70">
-        Удаление фото: владелец / “может удалять” / автор фото.
-      </div>
-    </div>
-  </div>
-
-  <div id="membersModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft max-h-[80vh] overflow-y-auto sheet">
-      <div class="flex items-center justify-between">
-        <div class="font-bold">👥 Участники</div>
-        <button id="membersClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
-      </div>
-
-      <div id="membersOwnerHint" class="mt-2 text-xs opacity-70"></div>
-
-      <button id="leaveBtnInside" class="hidden mt-3 btn glass w-full py-3 rounded-2xl text-orange-200">
-        🚪 Выйти из альбома
-      </button>
-
-      <div id="membersAddBox" class="mt-3 p-3 rounded-2xl bg-white/5">
-        <div class="text-sm font-semibold mb-2">Добавить/обновить участника</div>
-
-        <div class="grid gap-2">
-            <button id="pickBtn" class="btn glass w-full py-3 rounded-2xl">👤 Выбрать и добавить</button>
+  <!-- Members Modal -->
+  <div id="membersModal" class="modal">
+    <div class="modal-content absolute bottom-0 left-0 right-0 p-5 pt-6 bg-gray-800 rounded-t-3xl h-full flex flex-col">
+        <button id="membersClose" class="absolute top-4 right-4 text-white/50 btn">✖</button>
+        <h2 class="font-bold text-xl mb-2">Участники</h2>
+        <p id="membersOwnerHint" class="text-sm opacity-60 mb-4"></p>
+        
+        <div id="membersList" class="flex-grow overflow-y-auto -mr-2 pr-2"></div>
+        
+        <div id="membersAddBox" class="mt-4 pt-4 border-t border-white/10">
+             <p class="text-sm opacity-60 mb-2">Пригласить новых участников в альбом:</p>
+             <button id="pickBtn" class="w-full btn bg-blue-500 text-white font-bold py-3 rounded-xl">Добавить по @юзернейму</button>
         </div>
-
-        <div class="mt-3 grid gap-2">
-          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
-            <div>
-              <div class="font-semibold text-sm">⬆️ Загрузка</div>
-              <div class="text-xs opacity-70">Разрешить добавлять фото</div>
-            </div>
-            <div class="flex items-center gap-3">
-              <input id="canUploadChk" type="checkbox" class="sr-only" checked>
-              <span class="tg-toggle tg-green"><span class="dot"></span></span>
-            </div>
-          </label>
-
-          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
-            <div>
-              <div class="font-semibold text-sm">🗑 Удаление</div>
-              <div class="text-xs opacity-70">Разрешить удалять фото</div>
-            </div>
-            <div class="flex items-center gap-3">
-              <input id="canDeleteChk" type="checkbox" class="sr-only">
-              <span class="tg-toggle tg-red"><span class="dot"></span></span>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div class="mt-3 text-sm font-semibold">Список</div>
-      <div id="membersList" class="mt-2 grid gap-2"></div>
+        <button id="leaveBtnInside" class="hidden btn bg-yellow-600/20 text-yellow-300 w-full p-3 rounded-xl mt-4">🚪 Выйти из альбома</button>
     </div>
   </div>
 
-  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl glass shadow-soft text-sm hidden"></div>
+  <!-- Fullscreen Viewer Modal -->
+  <div id="fullModal" class="modal bg-black">
+    <div id="fullViewer" class="w-full h-full relative overflow-hidden">
+      <div id="fullTrack" class="w-full h-full"></div>
+    </div>
+    <div class="absolute top-0 left-0 right-0 p-4 z-10 flex justify-between bg-gradient-to-b from-black/50 to-transparent">
+      <button id="fullClose" class="btn w-12 h-12 text-2xl bg-white/10 rounded-full">✖</button>
+      <div class="flex gap-2">
+        <button id="fullDelete" class="btn w-12 h-12 text-2xl bg-white/10 rounded-full">🗑</button>
+        <button id="fullDownload" class="btn w-12 h-12 text-2xl bg-white/10 rounded-full">⬇️</button>
+        <button id="fullZoom" class="btn w-12 h-12 text-2xl bg-white/10 rounded-full">🔍</button>
+      </div>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>
