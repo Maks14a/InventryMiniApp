@@ -1,24 +1,7 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const getApiUrl = () => {
-    // Production hostname for the frontend
-    const prodHostname = 'iventry-album.web.app';
-
-    if (window.location.hostname === prodHostname) {
-        // If we are on production, use the production API
-        return 'https://api-eju8g7j209.amvera.io';
-    } else {
-        // Otherwise, assume a development/preview environment (like Firebase Studio).
-        // The API is running on port 8000 in the same environment.
-        const devApiUrl = new URL(window.location.origin);
-        devApiUrl.port = '8000';
-        return devApiUrl.origin;
-    }
-};
-const API = getApiUrl();
-console.log(`[INIT] Using API at ${API}`);
-
+const API = "https://api-eju8g7j209.amvera.io"; // Используем относительный путь для API
 
 // --- НАЧАЛО ФАЙЛА ---
 tg.ready();
@@ -39,8 +22,14 @@ console.log("WebApp loaded. UserID:", userId);
 
 let currentAlbumCode = "";
 let currentAlbumName = "";
-// Обновленная структура прав, полностью получаем с бэкенда
-let currentPerms = {};
+let currentPerms = { 
+    role: 'viewer', 
+    is_owner: false, 
+    is_moderator: false, 
+    can_upload: false, 
+    can_delete_any: false,
+    is_opened: false 
+};
 
 let camStream = null;
 let cameraFacing = "environment";
@@ -77,16 +66,9 @@ function toast(msg){
 }
 
 function escapeHtml(s){
-  return (s||"").replace(/[&<>"']/g, m => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;"
+  return (s||"").replace(/[&<>"\']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
   })[m]);
-}
-
-// Helper to format date and time
-function formatDateTime(isoString) {
-    if (!isoString) return "-";
-    const date = new Date(isoString);
-    return date.toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
 }
 
 function showAlbumsScreen(){
@@ -122,37 +104,12 @@ async function loadAlbums(){
       const card = document.createElement("div");
       card.className = "btn glass rounded-3xl p-5 flex items-center justify-between mb-3 w-full";
       card.onclick = () => openAlbum(a.code, a.name);
-
-      let timeInfo = "";
-      if (a.opening_at && a.closing_at) {
-          const opening = new Date(a.opening_at);
-          const closing = new Date(a.closing_at);
-          const now = new Date();
-
-          if (now < opening) {
-              timeInfo = `Открытие: ${formatDateTime(a.opening_at)}`;
-          } else if (now >= opening && now < closing) {
-              timeInfo = `Доступно до: ${formatDateTime(a.closing_at)}`;
-          } else {
-              timeInfo = "Загрузка закрыта";
-          }
-      } else if (a.opening_at) { // For albums with only opening time
-          const opening = new Date(a.opening_at);
-          const now = new Date();
-          if (now < opening) {
-              timeInfo = `Открытие: ${formatDateTime(a.opening_at)}`;
-          } else {
-              timeInfo = "Доступно";
-          }
-      }
-
       card.innerHTML = `
         <div class="flex items-center gap-4 text-left">
           <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl shadow-inner">🖼</div>
           <div>
             <div class="font-bold text-lg leading-tight">${escapeHtml(a.name)}</div>
-            <div class="text-xs opacity-50 uppercase tracking-widest">${a.role === 'owner' ? 'Создатель' : (a.role === 'moderator' ? 'Модератор' : 'Участник')}</div>
-            <div class="text-xs opacity-70">${timeInfo}</div>
+            <div class="text-xs opacity-50 uppercase tracking-widest">${a.role === 'owner' ? 'Создатель' : 'Участник'}</div>
           </div>
         </div>
         <div class="opacity-30">→</div>
@@ -175,11 +132,10 @@ window.openAlbum = async function(code, name){
     const data = await res.json();
     if (data.perms) {
       currentPerms = data.perms;
-      
-      // Update upload buttons based on can_upload (which now includes is_accepting_uploads)
       const camBtn = $("cameraBtn");
       const galleryBtn = $("galleryBtn");
       
+      // Блокируем кнопки если нельзя
       if (!currentPerms.can_upload) {
         camBtn.style.opacity = "0.3";
         camBtn.style.pointerEvents = "none";
@@ -192,45 +148,16 @@ window.openAlbum = async function(code, name){
         galleryBtn.style.pointerEvents = "auto";
       }
       
-      // Меню доступно всем, но его содержимое будет зависеть от прав
-      $("topMenuBtn").classList.remove("hidden");
-
-      updateAlbumTimeDisplay();
+      // Настройки доступны владельцу или модератору
+      if (currentPerms.is_owner || currentPerms.is_moderator) {
+        $("topMenuBtn").classList.remove("hidden");
+      } else {
+        $("topMenuBtn").classList.add("hidden");
+      }
     }
   } catch (e) { console.error(e); }
 
   await loadPhotos();
-}
-
-function updateAlbumTimeDisplay() {
-  const infoDiv = $("albumTimeInfo");
-  if (!infoDiv) return;
-
-  let timeStatus = "";
-  const now = new Date();
-
-  const openingAt = currentPerms.opening_at ? new Date(currentPerms.opening_at) : null;
-  const closingAt = currentPerms.closing_at ? new Date(currentPerms.closing_at) : null;
-
-  if (openingAt && closingAt) {
-      if (now < openingAt) {
-          timeStatus = `<span class="text-orange-400">Открытие: ${formatDateTime(currentPerms.opening_at)}</span>`;
-      } else if (now >= openingAt && now < closingAt) {
-          timeStatus = `<span class="text-green-400">Загрузка до: ${formatDateTime(currentPerms.closing_at)}</span>`;
-      } else {
-          timeStatus = `<span class="text-red-400">Загрузка закрыта</span>`;
-      }
-  } else if (openingAt) {
-      if (now < openingAt) {
-          timeStatus = `<span class="text-orange-400">Открытие: ${formatDateTime(currentPerms.opening_at)}</span>`;
-      } else {
-          timeStatus = `<span class="text-green-400">Доступно</span>`;
-      }
-  } else {
-      timeStatus = `<span class="text-gray-400">Время не установлено</span>`;
-  }
-
-  infoDiv.innerHTML = timeStatus;
 }
 
 async function loadPhotos(){
@@ -244,41 +171,21 @@ async function loadPhotos(){
 
       if(!r.ok){
         toast(d?.detail || "Ошибка загрузки");
-        currentPerms = {};
+        currentPerms = {role:'viewer', is_owner:false, can_upload:false, can_delete_any:false};
         $("permBadge").textContent = "Нет доступа";
         $("photoGrid").innerHTML = "";
         return;
       }
 
-      currentPerms = d.perms || {};
-      const roleName = {
-          owner: '👑 Владелец',
-          moderator: '🛠 Модератор',
-          participant: '👤 Участник',
-          viewer: '👁 Зритель'
-      };
-      $("permBadge").textContent = roleName[currentPerms.role] || 'Нет доступа';
+      currentPerms = d.perms || {role:'viewer', is_owner:false, can_upload:false, can_delete_any:false};
+      const badge = currentPerms.is_owner
+        ? "👑 Владелец"
+        : (currentPerms.can_upload ? "✅ Участник" : "👀 Просмотр");
+      $("permBadge").textContent = badge;
 
-      // Update upload hint based on currentPerms.is_accepting_uploads
-      if (!currentPerms.is_accepting_uploads) {
-          let message = "";
-          const now = new Date();
-          const openingAt = currentPerms.opening_at ? new Date(currentPerms.opening_at) : null;
-          const closingAt = currentPerms.closing_at ? new Date(currentPerms.closing_at) : null;
-
-          if (openingAt && now < openingAt) {
-              message = `Загрузка откроется: ${formatDateTime(currentPerms.opening_at)}`;
-          } else if (closingAt && now >= closingAt) {
-              message = "Загрузка закрыта.";
-          } else {
-              message = "Загрузка временно недоступна.";
-          }
-          $("uploadHint").innerHTML = `<span class="text-red-400">${message}</span>`;
-      } else if (currentPerms.can_upload) {
-          $("uploadHint").textContent = "Вы можете загружать фото и удалять свои собственные.";
-      } else {
-          $("uploadHint").textContent = "Просмотр фото. Права на загрузку ограничены.";
-      }
+      $("uploadHint").textContent = currentPerms.can_upload
+        ? "Можно добавлять фото. Удаление: владелец/модератор/автор фото."
+        : "Нет прав на загрузку. Попроси владельца выдать доступ.";
 
       const items = d.items || [];
       albumPhotos = items.map(p => ({ url: p.url, uploaded_by: p.uploaded_by || 0 }));
@@ -304,8 +211,7 @@ async function loadPhotos(){
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
 function canDeletePhoto(photo){
-  // Участник может удалить свое фото, модер/владелец - любое
-  return !!(currentPerms.can_delete_any || (photo?.uploaded_by && photo.uploaded_by === userId));
+  return !!(currentPerms.is_owner || currentPerms.can_delete_any || (photo?.uploaded_by && photo.uploaded_by === userId));
 }
 
 function getViewerRect(){
@@ -425,9 +331,9 @@ function onTouchMove(e){
 
     const maxPanX = (zoom - 1) * rect.width * 0.35;
     const maxPanY = (zoom - 1) * rect.height * 0.35;
-    panX = clamp(panX + (x - startX) * 0.9, -maxPanX, maxPanX);
-    panY = clamp(panY + (y - startY) * 0.9, -my, my);
-    startX = x; startY = y;
+    panX = clamp(panX, -maxPanX, maxPanX);
+    panY = clamp(panY, -maxPanY, maxPanY);
+
     applyZoom(false);
     e.preventDefault();
     return;
@@ -691,19 +597,18 @@ function cameraFallback(){
 function openManage(){
   if(!currentAlbumCode) return;
 
-  // Показываем/скрываем кнопки в зависимости от ролей
-  // Владелец
   $("renameBtn").style.display = currentPerms.is_owner ? "block" : "none";
   $("deleteAlbumBtn").style.display = currentPerms.is_owner ? "block" : "none";
-  // Модератор и Владелец
-  $("membersBtn").style.display = (currentPerms.is_owner || currentPerms.is_moderator) ? "block" : "none";
-  // Все, кроме владельца
-  $("leaveBtn").style.display = currentPerms.can_leave_album ? "block" : "none";
-  // Кнопка приглашения доступна модератору и владельцу
-  $("shareBtnBottom").style.display = (currentPerms.is_owner || currentPerms.is_moderator) ? "block" : "none";
-
+  $("leaveBtn").style.display = currentPerms.is_owner ? "none" : "block";
 
   $("manageModal").classList.add("show");
+}
+
+function getShareRights(){
+  const can_upload = $("shareCanUpload").checked;
+  const can_delete = $("shareCanDelete").checked;
+  const flags = (can_upload ? "1" : "0") + (can_delete ? "1" : "0");
+  return { can_upload, can_delete, flags };
 }
 
 function getShareMaxUses(){
@@ -715,12 +620,12 @@ function getShareMaxUses(){
   return n;
 }
 
-async function createInviteLink(){
-  const maxUses = getShareMaxUses();
-
+async function createInviteLink(canUpload, canDelete, maxUses){
   const fd = new FormData();
   fd.append("album_code", currentAlbumCode);
   fd.append("user_id", userId);
+  fd.append("can_upload", canUpload ? "true" : "false");
+  fd.append("can_delete", canDelete ? "true" : "false");
   fd.append("max_uses", String(maxUses));
   fd.append("ttl_hours", "168");
 
@@ -739,12 +644,14 @@ async function createInviteLink(){
 }
 
 async function shareByLink(){
-  if(!currentPerms.can_invite){
-    toast("Нет прав на создание приглашений");
+  if(!currentPerms.is_owner){
+    toast("Только владелец может делиться");
     return;
   }
-  
-  const link = await createInviteLink();
+  const rights = getShareRights();
+  const maxUses = getShareMaxUses();
+
+  const link = await createInviteLink(rights.can_upload, rights.can_delete, maxUses);
   if(!link) return;
 
   tg.openTelegramLink(
@@ -754,11 +661,7 @@ async function shareByLink(){
 }
 
 window.changeRole = async function(targetId, newRole) {
-  if (!currentPerms.is_owner) {
-      toast("Только владелец может менять роли");
-      return;
-  }
-  if (!confirm(`Назначить пользователя ${newRole === 'moderator' ? 'модератором' : 'участником'}?`)) return;
+  if (!confirm(`Изменить роль пользователя на ${newRole}?`)) return;
 
   const fd = new FormData();
   fd.append("album_code", currentAlbumCode);
@@ -768,12 +671,11 @@ window.changeRole = async function(targetId, newRole) {
 
   try {
     const res = await fetch(`${API}/api/member/set_role`, { method: "POST", body: fd });
-    const data = await res.json();
     if (res.ok) {
         toast("Роль изменена ✅");
-        await loadMembers(); // Обновляем список, чтобы увидеть изменения
+        await loadMembers();
     } else {
-        toast(data.detail || "Ошибка при смене роли");
+        toast("Ошибка при смене роли");
     }
   } catch(e) {
       toast("Ошибка сети");
@@ -781,18 +683,18 @@ window.changeRole = async function(targetId, newRole) {
 }
 
 function sharePersonToBot(){
-  if(!currentPerms.can_invite){
-    toast("Нет прав для добавления участников");
+  if(!currentPerms.is_owner){
+    toast("Только владелец может добавлять людей");
     return;
   }
-  // Права теперь не передаются, пользователь всегда добавляется как 'participant'
-  const deep = `https://t.me/Iventry_Bot?start=pick_${currentAlbumCode}`;
+  const rights = getShareRights();
+  const deep = `https://t.me/Iventry_Bot?start=pick_${currentAlbumCode}_${rights.flags}`;
   tg.openTelegramLink(deep);
   toast("Открыл бота — нажми «Выбрать человека»");
 }
 
 async function renameAlbum(){
-  if(!currentPerms.can_edit_album){
+  if(!currentPerms.is_owner){
     toast("Только владелец может переименовать");
     return;
   }
@@ -825,11 +727,11 @@ async function renameAlbum(){
 }
 
 async function deleteAlbum(){
-  if(!currentPerms.can_delete_album){
+  if(!currentPerms.is_owner){
     toast("Только владелец может удалить");
     return;
   }
-  const ok = confirm("УДАЛИТЬ АЛЬБОМ НАВСЕГДА?\n\nВсе фотографии и участники будут удалены без возможности восстановления.");
+  const ok = confirm("Удалить альбом навсегда?");
   if(!ok) return;
 
   const fd = new FormData();
@@ -855,11 +757,7 @@ async function deleteAlbum(){
 }
 
 async function leaveAlbum(){
-  if (!currentPerms.can_leave_album) {
-      toast("Владелец не может выйти из альбома.");
-      return;
-  }
-  const ok = confirm("Вы уверены, что хотите выйти из этого альбома?");
+  const ok = confirm("Выйти из альбома?");
   if(!ok) return;
 
   const fd = new FormData();
@@ -873,7 +771,7 @@ async function leaveAlbum(){
         toast(d?.detail || "Не удалось выйти");
         return;
     }
-    toast("🚪 Вы вышли из альбома");
+    toast("🚪 Ты вышел(ла) из альбома");
     $("manageModal").classList.remove("show");
     $("membersModal").classList.remove("show");
     currentAlbumCode = "";
@@ -889,17 +787,19 @@ async function leaveAlbum(){
 async function openMembers(){
   $("membersModal").classList.add("show");
 
-  // Упрощаем текст
   if(currentPerms.is_owner){
-    $("membersOwnerHint").textContent = "👑 Вы владелец: можете менять роли и исключать участников.";
+    $("membersOwnerHint").textContent = "👑 Ты владелец — можешь менять роли и кикать участников.";
+    $("membersAddBox").style.display = "block";
+    $("leaveBtnInside").classList.add("hidden");
   } else if(currentPerms.is_moderator) {
-    $("membersOwnerHint").textContent = "🛠 Вы модератор: можете исключать участников.";
+    $("membersOwnerHint").textContent = "🛠 Ты модератор — можешь кикать участников.";
+    $("membersAddBox").style.display = "none";
+    $("leaveBtnInside").classList.remove("hidden");
   } else {
-    $("membersOwnerHint").textContent = "Вы можете выйти из этого альбома в любой момент.";
+    $("membersOwnerHint").textContent = "👤 Ты участник. Можешь выйти из альбома.";
+    $("membersAddBox").style.display = "none";
+    $("leaveBtnInside").classList.remove("hidden");
   }
-  
-  $("membersAddBox").style.display = currentPerms.can_invite ? "block" : "none";
-  $("leaveBtnInside").style.display = currentPerms.can_leave_album ? "block" : "none";
 
   await loadMembers();
 }
@@ -916,8 +816,9 @@ async function loadMembers(){
 
     const roleLabels = {
       'owner': '👑 Владелец',
-      'moderator': '🛠 Модератор',
+      'moderator': '🛠 Модер',
       'participant': '👤 Участник',
+      'viewer': '👁 Наблюдатель'
     };
 
     if(!data.members || data.members.length === 0) {
@@ -927,39 +828,32 @@ async function loadMembers(){
 
     data.members.forEach(m => {
       const item = document.createElement("div");
-      item.className = "glass rounded-2xl px-4 py-3 flex flex-col gap-2 mb-2";
+      item.className = "btn glass rounded-2xl px-4 py-3 flex flex-col gap-2 pointer-events-none";
       
       const label = roleLabels[m.role] || 'Участник';
-      
-      // Определяем, какие кнопки управления показывать
-      const canBeKicked = currentPerms.can_kick && m.user_id !== userId && m.role !== 'owner' && !(currentPerms.is_moderator && m.role === 'moderator');
-      const canChangeRole = currentPerms.is_owner && m.user_id !== userId;
-      
-      let roleButtons = '';
-      if (canChangeRole) {
-          if (m.role === 'participant') {
-              roleButtons = `<button onclick="changeRole(${m.user_id}, 'moderator')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Назначить модером</button>`;
-          } else if (m.role === 'moderator') {
-              roleButtons = `<button onclick="changeRole(${m.user_id}, 'participant')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Разжаловать</button>`;
-          }
-      }
+      const initial = (m.first_name || m.username || "U").toString().charAt(0).toUpperCase();
 
       item.innerHTML = `
         <div class="flex items-center justify-between w-full">
           <div class="flex items-center gap-3 text-left">
-             <img src="${API}/api/avatar/${m.user_id}" class="w-10 h-10 rounded-xl bg-white/10 object-cover" onerror="this.src='./user.svg'" />
+             <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-bold text-lg">${initial}</div>
              <div class="flex flex-col">
                 <div class="font-semibold text-sm">${escapeHtml(m.first_name || (m.username ? "@"+m.username : "Гость"))}</div>
                 <div class="text-[10px] opacity-60 uppercase tracking-tighter">${label}</div>
              </div>
           </div>
-          <div class="flex items-center gap-1">
-            ${canBeKicked ? 
+          <div class="flex items-center gap-1 pointer-events-auto">
+            ${(currentPerms.is_owner || currentPerms.is_moderator) && m.role !== 'owner' && m.user_id != userId ? 
               `<button onclick="kickMember(${m.user_id})" class="text-red-400 p-2 active:scale-90 transition-transform">❌</button>` : ''}
           </div>
         </div>
         
-        ${roleButtons ? `<div class="flex gap-2 mt-1">${roleButtons}</div>` : ''}
+        ${currentPerms.is_owner && m.role !== 'owner' ? `
+          <div class="flex gap-2 mt-1 pointer-events-auto">
+            <button onclick="changeRole(${m.user_id}, 'moderator')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Модератор</button>
+            <button onclick="changeRole(${m.user_id}, 'participant')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Участник</button>
+          </div>
+        ` : ''}
       `;
       list.appendChild(item);
     });
@@ -969,34 +863,17 @@ async function loadMembers(){
 }
 
 window.kickMember = async function(memberId){
-    if (!confirm("Исключить участника из альбома?")) return;
-
-    const fd = new FormData();
-    fd.append("album_code", currentAlbumCode);
-    fd.append("user_id", userId); // Тот, кто кикает
-    fd.append("target_id", memberId); // Кого кикают
-
-    try {
-        const res = await fetch(`${API}/api/member/kick`, { method: "POST", body: fd });
-        const data = await res.json();
-        if (res.ok) {
-            toast("Участник исключен ✅");
-            await loadMembers();
-        } else {
-            toast(data.detail || "Ошибка при исключении");
-        }
-    } catch (e) {
-        toast("Ошибка сети");
-    }
+  if(!confirm("Удалить участника из альбома?")) return;
+  // Здесь должен быть вызов API для удаления, если он есть
+  toast("Удаление временно недоступно через UI");
 }
-
 
 // ===== UI binds =====
 if ($("backBtn")) {
     $("backBtn").onclick = async () => {
       currentAlbumCode = "";
       currentAlbumName = "";
-      currentPerms = {};
+      currentPerms = { role:'viewer', is_owner:false, can_upload:false, can_delete_any:false };
       showAlbumsScreen();
       await loadAlbums();
     };
@@ -1004,21 +881,21 @@ if ($("backBtn")) {
 
 if ($("galleryBtn")) {
     $("galleryBtn").onclick = () => {
-      if(!currentPerms.can_upload){ toast("Нет прав на загрузку или альбом закрыт."); return; }
+      if(!currentPerms.can_upload){ toast("Нет прав на загрузку"); return; }
       galleryPicker();
     };
 }
 
 if ($("cameraBtn")) {
     $("cameraBtn").onclick = async () => {
-      if(!currentPerms.can_upload){ toast("Нет прав на загрузку или альбом закрыт."); return; }
+      if(!currentPerms.can_upload){ toast("Нет прав на загрузку"); return; }
       await startCamera();
     };
 }
 
 if ($("shareBtnBottom")) {
     $("shareBtnBottom").onclick = () => {
-      if(!currentPerms.can_invite){ toast("Нет прав на создание приглашений"); return; }
+      if(!currentPerms.is_owner){ toast("Поделиться может только владелец"); return; }
       $("shareModal").classList.add("show");
     };
 }
@@ -1027,7 +904,6 @@ if ($("shareClose")) $("shareClose").onclick = () => $("shareModal").classList.r
 if ($("shareNoLimit")) $("shareNoLimit").onclick = () => { $("shareMaxUses").value = "0"; toast("Без лимита ✅"); }
 if ($("shareLinkBtn")) $("shareLinkBtn").onclick = async () => { await shareByLink(); }
 if ($("sharePersonBtn")) $("sharePersonBtn").onclick = () => { sharePersonToBot(); }
-if ($("pickBtn")) $("pickBtn").onclick = () => { sharePersonToBot(); }
 
 if ($("cameraClose")) $("cameraClose").onclick = stopCamera;
 if ($("camFallback")) $("camFallback").onclick = cameraFallback;
