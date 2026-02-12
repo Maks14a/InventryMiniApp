@@ -4,12 +4,7 @@ tg.expand();
 const API = "https://api-eju8g7j209.amvera.io";
 
 // --- НАЧАЛО ФАЙЛА ---
-// --- НАЧАЛО ФАЙЛА ---
-const tg = window.Telegram.WebApp;
 tg.ready();
-tg.expand();
-
-const API = "https://api-eju8g7j209.amvera.io";
 
 // Берем ID из телеграма. Если мы в браузере (тест), будет 0
 const tgUserId = tg.initDataUnsafe?.user?.id || 0;
@@ -69,7 +64,7 @@ function toast(msg){
 
 function escapeHtml(s){
   return (s||"").replace(/[&<>"']/g, m => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    "&":"&amp;","<":"&lt;",">":"&gt;","'":"&quot;","'":"&#039;"
   })[m]);
 }
 
