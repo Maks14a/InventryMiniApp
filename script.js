@@ -1,7 +1,7 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const API = ""; // Используем относительный путь для API
+const API = "https://api-eju8g7j209.amvera.io";
 
 // --- НАЧАЛО ФАЙЛА ---
 tg.ready();
@@ -863,10 +863,27 @@ async function loadMembers(){
 }
 
 window.kickMember = async function(memberId){
-  if(!confirm("Удалить участника из альбома?")) return;
-  // Здесь должен быть вызов API для удаления, если он есть
-  toast("Удаление временно недоступно через UI");
+    if (!confirm("Удалить участника из альбома?")) return;
+
+    const fd = new FormData();
+    fd.append("album_code", currentAlbumCode);
+    fd.append("user_id", userId); // Тот, кто кикает
+    fd.append("target_id", memberId); // Кого кикают
+
+    try {
+        const res = await fetch(`${API}/api/member/kick`, { method: "POST", body: fd });
+        const data = await res.json();
+        if (res.ok) {
+            toast("Участник удален ✅");
+            await loadMembers();
+        } else {
+            toast(data.detail || "Ошибка при удалении");
+        }
+    } catch (e) {
+        toast("Ошибка сети");
+    }
 }
+
 
 // ===== UI binds =====
 if ($("backBtn")) {
@@ -904,6 +921,7 @@ if ($("shareClose")) $("shareClose").onclick = () => $("shareModal").classList.r
 if ($("shareNoLimit")) $("shareNoLimit").onclick = () => { $("shareMaxUses").value = "0"; toast("Без лимита ✅"); }
 if ($("shareLinkBtn")) $("shareLinkBtn").onclick = async () => { await shareByLink(); }
 if ($("sharePersonBtn")) $("sharePersonBtn").onclick = () => { sharePersonToBot(); }
+if ($("pickBtn")) $("pickBtn").onclick = () => { sharePersonToBot(); }
 
 if ($("cameraClose")) $("cameraClose").onclick = stopCamera;
 if ($("camFallback")) $("camFallback").onclick = cameraFallback;
