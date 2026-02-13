@@ -2,221 +2,176 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Iventry Album</title>
-  
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-  <div>
+  <div class="app-container">
 
-    <div>
-      <div>
+    <header class="app-header">
+      <div class="brand-block">
+        <div class="brand-logo">📸</div>
         <div>
-          <div>📸</div>
-          <div>
-            <div>Iventry</div>
-            <div id="topTitle">Альбомы</div>
-          </div>
+          <div class="brand-name">Iventry</div>
+          <div id="topTitle" class="page-title">Альбомы</div>
         </div>
-        <button id="topMenuBtn" class="btn glass">⚙️</button>
       </div>
-      <div id="guestBanner">
-        Ты открыт как <b>гость</b>. Для нормальной работы открой мини-апп внутри Telegram.
-      </div>
+      <button id="topMenuBtn" class="btn glass header-btn hidden">⚙️</button>
+    </header>
+
+    <div id="guestBanner" class="hidden">
+      Ты открыт как <b>гость</b>. Для работы открой в Telegram.
     </div>
 
-    <div id="screenAlbums">
-      <div>Твои альбомы и расшаренные</div>
+    <main id="screenAlbums">
+      <div class="section-label">Ваши коллекции</div>
       <div id="albumsList"></div>
-    </div>
+    </main>
 
-    <div id="screenAlbum">
-      <div>
+    <main id="screenAlbum" class="hidden">
+      <div class="nav-bar">
         <button id="backBtn" class="btn glass">← Назад</button>
-        <div id="permBadge"></div>
-        <div></div>
+        <div id="permBadge">...</div>
       </div>
+      
       <div id="photoGrid"></div>
-      <div class="glass">
-        <div>
-          <button id="galleryBtn" class="btn glass">🖼 Галерея</button>
-          <button id="cameraBtn" class="btn glass">📷 Камера</button>
-          <button id="shareBtnBottom" class="btn glass">📤 Поделиться</button>
+
+      <div class="bottom-toolbar glass">
+        <div class="toolbar-grid">
+          <button id="galleryBtn" class="btn toolbar-btn">🖼 Галерея</button>
+          <button id="cameraBtn" class="btn toolbar-btn">📷 Камера</button>
+          <button id="shareBtnBottom" class="btn toolbar-btn">📤 Инфо</button>
         </div>
-        <div id="uploadHint"></div>
+        <div id="uploadHint">Только просмотр</div>
       </div>
-    </div>
+    </main>
 
   </div>
 
-  <div id="fullModal" class="modal">
-    <div class="centerCard">
-      <div class="fullbar">
-        <button id="fullZoom" class="btn">🔍</button>
-        <button id="fullDownload" class="btn">⬇️</button>
-        <button id="fullDelete" class="btn">🗑</button>
-        <button id="fullClose" class="btn">✕</button>
+  <div id="fullModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="fs-controls">
+        <button id="fullZoom" class="btn icon-btn">🔍</button>
+        <button id="fullDownload" class="btn icon-btn">⬇️</button>
+        <button id="fullDelete" class="btn icon-btn hidden">🗑</button>
+        <button id="fullClose" class="btn icon-btn">✕</button>
       </div>
 
-      <div id="fullViewer">
+      <div id="fullViewer" style="width:100%; height:100%; overflow:hidden;">
         <div id="fullTrack"></div>
       </div>
-
-      <div>
-        Свайп — листать. Двойной тап / 🔍 — зум. Пинч — масштаб.
+      
+      <div class="absolute bottom-4 w-full text-center text-xs opacity-50 pointer-events-none">
+        Свайп — листать / Двойной тап — зум
       </div>
     </div>
   </div>
 
-  <div id="cameraModal" class="modal">
-    <div class="centerCard">
-      <div>
-        <div>📷 Камера</div>
-        <div>
-          <button id="camFlip" class="btn glass">🔄</button>
-          <button id="cameraClose" class="btn glass">✕</button>
-        </div>
+  <div id="cameraModal" class="modal-overlay">
+    <div class="modal-card relative">
+      <div class="cam-overlay-top">
+        <button id="camFlip" class="btn glass icon-btn">🔄</button>
+        <button id="cameraClose" class="btn glass icon-btn">✕</button>
       </div>
 
-      <div>
-        <video id="camVideo" playsinline autoplay muted></video>
-      </div>
-
-      <div>
-        <button id="camShot" class="btn glass">📸 Снять</button>
-        <button id="camFallback" class="btn glass">🗂 Фолбэк</button>
-      </div>
-
+      <video id="camVideo" playsinline autoplay muted></video>
       <canvas id="camCanvas"></canvas>
-      <div>
-        Если чёрный экран — нажми 🔄 или «Фолбэк».
-      </div>
+
+      <div class="cam-overlay-bottom">
+        <button id="camFallback" class="btn glass" style="padding: 10px 20px; border-radius: 20px; font-size:12px;">🗂 Файл</button>
+        <button id="camShot" class="btn"></button>
+        <div style="width: 60px"></div> </div>
     </div>
   </div>
 
-  <div id="shareModal" class="modal">
-    <div class="glass">
-      <div>
-        <div>📤 Поделиться</div>
-        <button id="shareClose" class="btn glass">✕</button>
+  <div id="shareModal" class="modal-overlay">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <span>📤 Доступ</span>
+        <button id="shareClose" class="close-circle btn">✕</button>
       </div>
 
-      <div>Права по ссылке (просмотр всегда есть)</div>
-
-      <div>
-        <label class="btn glass">
-          <div>
-            <div>⬆️ Загрузка</div>
-            <div>Можно добавлять фото</div>
+      <div class="action-list">
+        <label class="setting-row">
+          <div class="setting-text">
+            <strong>Загрузка фото</strong>
+            <span>Гость сможет добавлять</span>
           </div>
           <div>
             <input id="shareCanUpload" type="checkbox" checked>
-            <span><span></span></span>
+            <span class="tg-switch"><span></span></span>
           </div>
         </label>
 
-        <label class="btn glass">
-          <div>
-            <div>🗑 Удаление</div>
-            <div>Можно удалять фото</div>
+        <label class="setting-row">
+          <div class="setting-text">
+            <strong>Удаление</strong>
+            <span>Гость сможет удалять</span>
           </div>
           <div>
             <input id="shareCanDelete" type="checkbox">
-            <span class="tg-toggle"><span></span></span>
+            <span class="tg-switch"><span></span></span>
           </div>
         </label>
       </div>
 
-      <div>Сколько людей смогут зайти</div>
-      <div>
-        <input id="shareMaxUses" class="btn"
-               placeholder="Например 20 (0 = без лимита)" value="20">
-        <button id="shareNoLimit" class="btn glass">∞</button>
-      </div>
-      <div>0 = без лимита. Ссылка действует 7 дней.</div>
-
-      <div>
-        <button id="shareLinkBtn" class="btn glass">🔗 Создать ссылку и отправить</button>
-        <button id="sharePersonBtn" class="btn glas">👤 Добавить человека через Telegram</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="manageModal" class="modal">
-    <div class="glass">
-      <div>
-        <div>⚙️ Настройки</div>
-        <button id="manageClose" class="btn glass">✕</button>
+      <div style="margin-top: 10px;">
+        <div class="text-xs opacity-50 mb-1">Лимит открытий (0 = ∞)</div>
+        <div class="flex gap-2">
+          <input id="shareMaxUses" type="number" value="20">
+          <button id="shareNoLimit" class="btn glass" style="width:50px; border-radius:12px;">∞</button>
+        </div>
       </div>
 
-      <div>
-        <button id="renameBtn" class="btn glass">✏️ Переименовать</button>
-        <button id="membersBtn" class="btn glass">👥 Участники</button>
-        <button id="leaveBtn" class="btn glass">🚪 Выйти из альбома</button>
-        <button id="deleteAlbumBtn" class="btn glass">🗑 Удалить альбом</button>
-      </div>
-
-      <div>
-        Удаление фото: владелец / “может удалять” / автор фото.
+      <div class="action-list" style="margin-top: 10px;">
+        <button id="shareLinkBtn" class="btn action-btn bg-white/5">🔗 Сгенерировать ссылку</button>
+        <button id="sharePersonBtn" class="btn action-btn bg-white/5">👤 Выбрать человека</button>
       </div>
     </div>
   </div>
 
-  <div id="membersModal" class="moda">
-    <div class="glass">
-      <div>
-        <div>👥 Участники</div>
-        <button id="membersClose" class="btn glass">✕</button>
+  <div id="manageModal" class="modal-overlay">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <span>⚙️ Настройки</span>
+        <button id="manageClose" class="close-circle btn">✕</button>
       </div>
 
-      <div id="membersOwnerHint"></div>
+      <div class="action-list">
+        <button id="renameBtn" class="btn action-btn">✏️ Переименовать</button>
+        <button id="membersBtn" class="btn action-btn">👥 Участники</button>
+        <button id="leaveBtn" class="btn action-btn text-danger">🚪 Выйти</button>
+        <button id="deleteAlbumBtn" class="btn action-btn text-danger">🗑 Удалить альбом</button>
+      </div>
+      
+      <div class="text-center text-xs opacity-30 mt-2">ID: ...</div>
+    </div>
+  </div>
 
-      <button id="leaveBtnInside" class="btn glass">
-        🚪 Выйти из альбома
-      </button>
+  <div id="membersModal" class="modal-overlay">
+    <div class="modal-card glass" style="max-height: 80vh; overflow-y:auto;">
+      <div class="modal-header">
+        <span>👥 Участники</span>
+        <button id="membersClose" class="close-circle btn">✕</button>
+      </div>
+
+      <div id="membersOwnerHint" class="text-xs opacity-50 p-2 bg-white/5 rounded"></div>
+      <button id="leaveBtnInside" class="btn action-btn text-danger hidden mb-3">🚪 Выйти</button>
 
       <div id="membersAddBox">
-        <div>Добавить/обновить участника</div>
-
-        <div>
-            <button id="pickBtn" class="btn glass">👤 Выбрать и добавить</button>
-        </div>
-
-        <div>
-          <label class="btn glass">
-            <div>
-              <div>⬆️ Загрузка</div>
-              <div>Разрешить добавлять фото</div>
-            </div>
-            <div>
-              <input id="canUploadChk" type="checkbox" checked>
-              <span class="tg-toggle"><span></span></span>
-            </div>
-          </label>
-
-          <label class="btn glass">
-            <div>
-              <div>🗑 Удаление</div>
-              <div>Разрешить удалять фото</div>
-            </div>
-            <div>
-              <input id="canDeleteChk" type="checkbox">
-              <span class="tg-toggle"><span></span></span>
-            </div>
-          </label>
-        </div>
+        <div class="text-sm font-bold opacity-70 mb-2">Настройки новых приглашений</div>
+        <div class="text-xs opacity-40 mb-2">Используйте меню "Поделиться" для создания ссылок с правами.</div>
       </div>
 
-      <div>Список</div>
-      <div id="membersList"></div>
+      <div class="section-label mt-4">Список</div>
+      <div id="membersList" class="flex flex-col gap-2"></div>
     </div>
   </div>
 
-  <div id="toast" class="glass"></div>
+  <div id="toast" class="hidden"></div>
 
   <script src="script.js"></script>
 </body>

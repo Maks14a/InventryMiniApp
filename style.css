@@ -1,165 +1,389 @@
 :root {
-  --dur: 220ms;
-  --dur2: 280ms;
-  --e: cubic-bezier(.2,.85,.2,1);
+  /* Цветовая палитра */
+  --bg-main: #000000;
+  --text-main: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --accent: #007aff; /* iOS Blue */
+  --danger: #ff3b30;
+  
+  /* Эффект стекла */
+  --glass-bg: rgba(30, 30, 30, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 20px;
+  
+  /* Размеры и отступы */
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --padding-page: 20px;
 }
 
-/* Базовые сбросы */
-* { 
-  -webkit-tap-highlight-color: transparent; 
-  box-sizing: border-box; 
-}
-
-body { 
-  margin:0; 
-  background:#0b0b0f; 
-  color:#fff; 
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+/* === БАЗОВЫЕ НАСТРОЙКИ === */
+body {
+  margin: 0;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  font-size: 16px;
 }
 
-.glass { background:rgba(255,255,255,.08); backdrop-filter:blur(16px); }
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
 
+/* Класс .glass используется и в HTML, и в JS */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+}
+
+/* Класс .btn - база для всех кнопок */
 .btn {
-  border:1px solid rgba(255,255,255,.12);
-  transition:
-    transform var(--dur) var(--e),
-    background var(--dur) var(--e),
-    border-color var(--dur) var(--e),
-    opacity var(--dur) var(--e);
-  will-change: transform;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, opacity 0.2s, background 0.2s;
+  user-select: none;
 }
-.btn:active { transform: scale(.98); }
-.btn:hover { border-color: rgba(255,255,255,.20); }
-.shadow-soft { box-shadow:0 10px 35px rgba(0,0,0,.35); }
+.btn:active { transform: scale(0.96); opacity: 0.8; }
 
-/* МОДАЛЬНЫЕ ОКНА */
-.modal {
-  position:fixed; inset:0;
-  background:rgba(0,0,0,.68);
-  z-index:9999;
-  display:flex;
-  opacity:0;
-  pointer-events:none;
-  transition: opacity var(--dur2) var(--e);
-}
-.modal.show { opacity:1; pointer-events:auto; }
+/* === ЛЕЙАУТ И СТРУКТУРА (Clean CSS) === */
 
-.sheet {
-  transform: translate3d(0,18px,0);
-  opacity:0;
-  transition: transform var(--dur2) var(--e), opacity var(--dur2) var(--e);
-}
-.modal.show .sheet { transform: translate3d(0,0,0); opacity:1; }
-
-.centerCard {
-  transform: scale(.965);
-  opacity:0;
-  transition: transform var(--dur2) var(--e), opacity var(--dur2) var(--e);
-}
-.modal.show .centerCard { transform: scale(1); opacity:1; }
-
-/* ПЕРЕКЛЮЧАТЕЛИ (TOGGLES) */
-.tg-toggle {
-  width:48px; height:28px;
-  border-radius:999px;
-  background:rgba(255,255,255,.15);
-  position:relative;
-  transition: background var(--dur) var(--e);
-  cursor:pointer;
-}
-.tg-toggle .dot {
-  position:absolute; top:4px; left:4px;
-  width:20px; height:20px;
-  border-radius:999px;
-  background:rgba(255,255,255,.85);
-  transition: transform var(--dur) var(--e);
-}
-input:checked + .tg-toggle .dot { transform: translate3d(20px,0,0); }
-input:checked + .tg-toggle.tg-green { background:rgba(34,197,94,.5); }
-input:checked + .tg-toggle.tg-red { background:rgba(239,68,68,.5); }
-
-/* ИСПРАВЛЕННАЯ СЕТКА ФОТО (БЕЗ НАЛОЖЕНИЙ) */
-#photoGrid {
+/* Шапка приложения */
+.app-header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px; /* Расстояние между фото */
-  padding: 8px;
-  padding-bottom: 120px;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--padding-page);
+  padding-top: 20px;
+  padding-bottom: 10px;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-logo { font-size: 28px; }
+.brand-name { 
+  font-size: 11px; 
+  text-transform: uppercase; 
+  letter-spacing: 2px; 
+  opacity: 0.5; 
+  margin-bottom: 2px;
+}
+.page-title { font-size: 24px; font-weight: 800; line-height: 1.1; }
+
+.header-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  font-size: 20px;
+}
+
+/* Баннер гостя */
+#guestBanner {
+  margin: 0 20px 20px;
+  padding: 12px;
+  background: rgba(255, 204, 0, 0.15);
+  color: #ffcc00;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  text-align: center;
+  border: 1px solid rgba(255, 204, 0, 0.2);
+}
+
+/* Экраны */
+#screenAlbums, #screenAlbum {
+  padding: 0 var(--padding-page);
+  padding-bottom: 140px; /* место под меню */
+  animation: fadeEnter 0.4s ease;
+}
+
+@keyframes fadeEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.4;
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+
+/* Сетка фотографий */
+#photoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
 }
 
 .photo-tile {
-  position: relative;
-  /* (100% - 16px межсеточного пространства) / 3 колонки */
-  width: calc((100% - 16px) / 3);
-  /* Хак для фиксации высоты (padding-top резервирует место сразу) */
-  height: 0;
-  padding-top: calc((100% - 16px) / 3); 
-  border-radius: 12px;
-  background: rgba(255,255,255,.05);
+  aspect-ratio: 1;
+  background: #1c1c1e;
+  border-radius: 4px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.08);
+  position: relative;
 }
-
 .photo-tile img {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.3s;
+}
+/* Анимация появления фото (класс добавляет JS) */
+.pop { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes popIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+
+/* === ПАНЕЛИ И МЕНЮ === */
+
+/* Верхняя панель навигации в альбоме */
+.nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+#backBtn {
+  height: 40px; padding: 0 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+#permBadge {
+  font-size: 12px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 20px;
 }
 
-/* АНИМАЦИЯ ПОЯВЛЕНИЯ (БЕЗ TRANSLATE ЧТОБЫ НЕ ГЛЮЧИЛО) */
-.pop {
-  animation: fadeIn 0.3s ease forwards;
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* ФУЛЛСКРИН ПРОСМОТР */
-.fullbar {
-  position:absolute;
-  top:12px; left:12px; right:12px;
-  display:flex;
-  justify-content:flex-end;
-  gap:8px;
-  z-index:10;
-}
-.fullbar .mini {
-  background: rgba(0,0,0,.45);
-  border: 1px solid rgba(255,255,255,.14);
-  backdrop-filter: blur(12px);
-  padding: 8px;
-  border-radius: 12px;
+/* Нижняя панель действий (плавающая) */
+.bottom-toolbar {
+  position: fixed;
+  bottom: 24px; left: 20px; right: 20px;
+  padding: 12px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 90;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
 }
 
-#fullViewer {
-  position:relative;
-  width: 100%;
-  height: 100%;
-  overflow:hidden;
+.toolbar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
 }
 
-#fullTrack {
-  display:flex;
-  height: 100%;
-  transition: transform 0.3s ease-out;
+.toolbar-btn {
+  height: 48px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.08);
+  font-weight: 600;
+  font-size: 13px;
+}
+.toolbar-btn:hover { background: rgba(255,255,255,0.15); }
+
+#uploadHint {
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.4;
 }
 
-.fullSlide {
-  min-width:100%;
-  height: 100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.fullImg {
-  max-width: 100%;
-  max-height: 80vh;
-  object-fit: contain;
+/* === МОДАЛЬНЫЕ ОКНА === */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 0.3s;
 }
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+
+/* Контент модалки */
+.modal-card {
+  width: 90%; max-width: 360px;
+  padding: 24px;
+  border-radius: 28px;
+  background: #1c1c1e;
+  border: 1px solid rgba(255,255,255,0.1);
+  transform: scale(0.9);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.modal-overlay.show .modal-card { transform: scale(1); }
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.close-circle {
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 50%;
+  font-size: 14px;
+}
+
+/* Элементы управления внутри модалок */
+.action-list { display: flex; flex-direction: column; gap: 8px; }
+.action-btn {
+  justify-content: flex-start;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.05);
+  font-size: 15px;
+  gap: 12px;
+}
+.text-danger { color: var(--danger); }
+
+/* Тогглы и инпуты */
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.setting-text strong { display: block; font-size: 15px; }
+.setting-text span { font-size: 12px; opacity: 0.5; }
+
+/* Переключатель (Toggle) */
+.tg-switch {
+  width: 50px; height: 30px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 30px;
+  position: relative;
+  transition: 0.3s;
+}
+.tg-switch span {
+  position: absolute; top: 2px; left: 2px;
+  width: 26px; height: 26px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.3s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+input:checked + .tg-switch { background: #34c759; }
+input:checked + .tg-switch span { transform: translateX(20px); }
+input[type="checkbox"] { display: none; }
+
+input[type="text"], input[type="number"] {
+  width: 100%;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 14px;
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+}
+
+/* === FULLSCREEN & CAMERA (Специфичные экраны) === */
+#fullModal { background: #000; }
+#fullModal .modal-card { 
+  width: 100%; height: 100%; max-width: none; 
+  background: none; border: none; padding: 0; border-radius: 0; 
+}
+.fs-controls {
+  position: absolute; top: 0; left: 0; right: 0;
+  padding: 50px 20px 20px;
+  display: flex; justify-content: flex-end; gap: 12px;
+  z-index: 10;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+}
+.icon-btn {
+  width: 40px; height: 40px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 50%;
+  font-size: 18px;
+}
+#fullTrack { display: flex; height: 100%; width: 100%; align-items: center; }
+.fullSlide { min-width: 100%; display: flex; justify-content: center; }
+.fullImg { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* Камера */
+#cameraModal .modal-card { width: 100%; height: 100%; max-width: none; padding: 0; background: #000; border-radius: 0; }
+#camVideo { width: 100%; height: 100%; object-fit: cover; }
+#camCanvas { display: none; }
+.cam-overlay-top {
+  position: absolute; top: 0; width: 100%; padding: 50px 20px;
+  display: flex; justify-content: space-between; z-index: 20;
+}
+.cam-overlay-bottom {
+  position: absolute; bottom: 40px; width: 100%;
+  display: flex; justify-content: space-around; align-items: center;
+  z-index: 20;
+}
+#camShot {
+  width: 72px; height: 72px;
+  background: #fff; border: 4px solid rgba(255,255,255,0.4);
+  border-radius: 50%;
+}
+#camShot:active { transform: scale(0.9); background: #ccc; }
+
+/* Toast Notification */
+#toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: rgba(50,50,50,0.95); color: #fff;
+  padding: 10px 24px; border-radius: 50px; font-size: 14px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+  z-index: 9999;
+  transition: 0.3s;
+}
+#toast.hidden { opacity: 0; transform: translate(-50%, 20px); pointer-events: none; }
+
+/* ==============================================
+   COMPATIBILITY LAYER (ДЛЯ JS)
+   Ваш JS генерирует классы "tailwind-style". 
+   Эти стили нужны, чтобы скрипт не сломался.
+   ============================================== */
+.hidden { display: none !important; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-4 { gap: 16px; }
+.p-2 { padding: 8px; }
+.p-3 { padding: 12px; }
+.p-5 { padding: 20px; }
+.mb-3 { margin-bottom: 12px; }
+.mt-1 { margin-top: 4px; }
+.rounded-xl { border-radius: 12px; }
+.rounded-3xl { border-radius: 24px; }
+.w-full { width: 100%; }
+.text-lg { font-size: 1.125rem; }
+.text-sm { font-size: 0.875rem; }
+.text-xs { font-size: 0.75rem; }
+.font-bold { font-weight: 700; }
+.opacity-50 { opacity: 0.5; }
+.text-red-400 { color: #ff3b30; }
+.uppercase { text-transform: uppercase; }
+.tracking-widest { letter-spacing: 0.1em; }
+.relative { position: relative; }
+/* Остальные утилиты, которые JS добавляет карточкам */
+.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+.bg-white\/5 { background-color: rgba(255, 255, 255, 0.05); }
