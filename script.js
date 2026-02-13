@@ -1,7 +1,7 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const API = "https://api-eju8g7j209.amvera.io"; // Используем относительный путь для API
+const API = "https://api-xkrcgy4lto.amvera.io"; // Используем относительный путь для API
 
 // --- НАЧАЛО ФАЙЛА ---
 tg.ready();
