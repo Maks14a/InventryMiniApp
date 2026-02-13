@@ -6,218 +6,217 @@
   <title>Iventry Album</title>
   
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
   
   <link rel="stylesheet" href="style.css" />
 </head>
 
-<body class="h-screen overflow-hidden">
-  <div class="h-full flex flex-col">
+<body>
+  <div>
 
-    <div class="px-4 pt-4 pb-3"> <!-- class="ккакое-то название"-->
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div class="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center shadow-soft">📸</div>
+    <div>
+      <div>
+        <div>
+          <div>📸</div>
           <div>
-            <div class="text-sm opacity-70 leading-none">Iventry</div>
-            <div id="topTitle" class="font-bold text-lg leading-tight">Альбомы</div>
+            <div>Iventry</div>
+            <div id="topTitle">Альбомы</div>
           </div>
         </div>
-        <button id="topMenuBtn" class="btn glass px-3 py-2 rounded-2xl text-sm hidden">⚙️</button>
+        <button id="topMenuBtn" class="btn glass">⚙️</button>
       </div>
-      <div id="guestBanner" class="hidden mt-2 text-xs opacity-70">
+      <div id="guestBanner">
         Ты открыт как <b>гость</b>. Для нормальной работы открой мини-апп внутри Telegram.
       </div>
     </div>
 
-    <div id="screenAlbums" class="flex-1 overflow-y-auto px-4 pb-24">
-      <div class="mt-2 text-sm opacity-70">Твои альбомы и расшаренные</div>
-      <div id="albumsList" class="mt-4 grid gap-3"></div>
+    <div id="screenAlbums">
+      <div>Твои альбомы и расшаренные</div>
+      <div id="albumsList"></div>
     </div>
 
-    <div id="screenAlbum" class="hidden flex-1 flex flex-col overflow-hidden">
-      <div class="px-4 pb-3 flex items-center justify-between">
-        <button id="backBtn" class="btn glass px-3 py-2 rounded-2xl text-sm">← Назад</button>
-        <div id="permBadge" class="text-xs px-3 py-2 rounded-2xl bg-white/10"></div>
-        <div class="w-24"></div>
+    <div id="screenAlbum">
+      <div>
+        <button id="backBtn" class="btn glass">← Назад</button>
+        <div id="permBadge"></div>
+        <div></div>
       </div>
-      <div id="photoGrid" class="flex-1 overflow-y-auto px-2"></div>
-      <div class="glass p-4 rounded-t-3xl shadow-soft sheet" style="opacity:1;transform:none">
-        <div class="flex items-center justify-between gap-3">
-          <button id="galleryBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">🖼 Галерея</button>
-          <button id="cameraBtn" class="btn glass flex-1 py-3 rounded-2xl text-sm">📷 Камера</button>
-          <button id="shareBtnBottom" class="btn glass flex-1 py-3 rounded-2xl text-sm text-blue-200">📤 Поделиться</button>
+      <div id="photoGrid"></div>
+      <div class="glass">
+        <div>
+          <button id="galleryBtn" class="btn glass">🖼 Галерея</button>
+          <button id="cameraBtn" class="btn glass">📷 Камера</button>
+          <button id="shareBtnBottom" class="btn glass">📤 Поделиться</button>
         </div>
-        <div id="uploadHint" class="mt-2 text-xs opacity-70"></div>
+        <div id="uploadHint"></div>
       </div>
     </div>
 
   </div>
 
-  <div id="fullModal" class="modal items-center justify-center p-4">
-    <div class="w-full max-w-3xl relative centerCard">
+  <div id="fullModal" class="modal">
+    <div class="centerCard">
       <div class="fullbar">
-        <button id="fullZoom" class="mini btn px-3 py-2 rounded-2xl text-sm">🔍</button>
-        <button id="fullDownload" class="mini btn px-3 py-2 rounded-2xl text-sm">⬇️</button>
-        <button id="fullDelete" class="mini btn px-3 py-2 rounded-2xl text-sm hidden">🗑</button>
-        <button id="fullClose" class="mini btn px-3 py-2 rounded-2xl text-sm">✕</button>
+        <button id="fullZoom" class="btn">🔍</button>
+        <button id="fullDownload" class="btn">⬇️</button>
+        <button id="fullDelete" class="btn">🗑</button>
+        <button id="fullClose" class="btn">✕</button>
       </div>
 
-      <div id="fullViewer" class="w-full">
+      <div id="fullViewer">
         <div id="fullTrack"></div>
       </div>
 
-      <div class="mt-2 text-xs opacity-70 px-1">
+      <div>
         Свайп — листать. Двойной тап / 🔍 — зум. Пинч — масштаб.
       </div>
     </div>
   </div>
 
-  <div id="cameraModal" class="modal items-center justify-center p-4">
-    <div class="w-full max-w-xl glass rounded-3xl p-4 shadow-soft centerCard">
-      <div class="flex items-center justify-between">
-        <div class="font-bold">📷 Камера</div>
-        <div class="flex items-center gap-2">
-          <button id="camFlip" class="btn glass px-3 py-2 rounded-2xl">🔄</button>
-          <button id="cameraClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+  <div id="cameraModal" class="modal">
+    <div class="centerCard">
+      <div>
+        <div>📷 Камера</div>
+        <div>
+          <button id="camFlip" class="btn glass">🔄</button>
+          <button id="cameraClose" class="btn glass">✕</button>
         </div>
       </div>
 
-      <div class="mt-3 rounded-2xl overflow-hidden bg-black/60">
-        <video id="camVideo" playsinline autoplay muted class="w-full h-[52vh] object-cover"></video>
+      <div>
+        <video id="camVideo" playsinline autoplay muted></video>
       </div>
 
-      <div class="mt-3 flex gap-2">
-        <button id="camShot" class="btn glass flex-1 py-3 rounded-2xl">📸 Снять</button>
-        <button id="camFallback" class="btn glass px-4 py-3 rounded-2xl">🗂 Фолбэк</button>
+      <div>
+        <button id="camShot" class="btn glass">📸 Снять</button>
+        <button id="camFallback" class="btn glass">🗂 Фолбэк</button>
       </div>
 
-      <canvas id="camCanvas" class="hidden"></canvas>
-      <div class="mt-2 text-xs opacity-70">
+      <canvas id="camCanvas"></canvas>
+      <div>
         Если чёрный экран — нажми 🔄 или «Фолбэк».
       </div>
     </div>
   </div>
 
-  <div id="shareModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft sheet">
-      <div class="flex items-center justify-between">
-        <div class="font-bold">📤 Поделиться</div>
-        <button id="shareClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+  <div id="shareModal" class="modal">
+    <div class="glass">
+      <div>
+        <div>📤 Поделиться</div>
+        <button id="shareClose" class="btn glass">✕</button>
       </div>
 
-      <div class="mt-3 text-sm font-semibold">Права по ссылке (просмотр всегда есть)</div>
+      <div>Права по ссылке (просмотр всегда есть)</div>
 
-      <div class="mt-2 grid gap-2">
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
+      <div>
+        <label class="btn glass">
           <div>
-            <div class="font-semibold">⬆️ Загрузка</div>
-            <div class="text-xs opacity-70">Можно добавлять фото</div>
+            <div>⬆️ Загрузка</div>
+            <div>Можно добавлять фото</div>
           </div>
-          <div class="flex items-center gap-3">
-            <input id="shareCanUpload" type="checkbox" class="sr-only" checked>
-            <span class="tg-toggle tg-green"><span class="dot"></span></span>
+          <div>
+            <input id="shareCanUpload" type="checkbox" checked>
+            <span><span></span></span>
           </div>
         </label>
 
-        <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
+        <label class="btn glass">
           <div>
-            <div class="font-semibold">🗑 Удаление</div>
-            <div class="text-xs opacity-70">Можно удалять фото</div>
+            <div>🗑 Удаление</div>
+            <div>Можно удалять фото</div>
           </div>
-          <div class="flex items-center gap-3">
-            <input id="shareCanDelete" type="checkbox" class="sr-only">
-            <span class="tg-toggle tg-red"><span class="dot"></span></span>
+          <div>
+            <input id="shareCanDelete" type="checkbox">
+            <span class="tg-toggle"><span></span></span>
           </div>
         </label>
       </div>
 
-      <div class="mt-4 text-sm font-semibold">Сколько людей смогут зайти</div>
-      <div class="mt-2 flex gap-2">
-        <input id="shareMaxUses" class="flex-1 px-4 py-3 rounded-2xl bg-black/40 outline-none btn"
+      <div>Сколько людей смогут зайти</div>
+      <div>
+        <input id="shareMaxUses" class="btn"
                placeholder="Например 20 (0 = без лимита)" value="20">
-        <button id="shareNoLimit" class="btn glass px-4 py-3 rounded-2xl">∞</button>
+        <button id="shareNoLimit" class="btn glass">∞</button>
       </div>
-      <div class="mt-2 text-xs opacity-70">0 = без лимита. Ссылка действует 7 дней.</div>
+      <div>0 = без лимита. Ссылка действует 7 дней.</div>
 
-      <div class="mt-4 grid gap-2">
-        <button id="shareLinkBtn" class="btn glass w-full py-3 rounded-2xl text-blue-200">🔗 Создать ссылку и отправить</button>
-        <button id="sharePersonBtn" class="btn glass w-full py-3 rounded-2xl">👤 Добавить человека через Telegram</button>
+      <div>
+        <button id="shareLinkBtn" class="btn glass">🔗 Создать ссылку и отправить</button>
+        <button id="sharePersonBtn" class="btn glas">👤 Добавить человека через Telegram</button>
       </div>
     </div>
   </div>
 
-  <div id="manageModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft sheet">
-      <div class="flex items-center justify-between">
-        <div class="font-bold">⚙️ Настройки</div>
-        <button id="manageClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+  <div id="manageModal" class="modal">
+    <div class="glass">
+      <div>
+        <div>⚙️ Настройки</div>
+        <button id="manageClose" class="btn glass">✕</button>
       </div>
 
-      <div class="mt-3 grid gap-2">
-        <button id="renameBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">✏️ Переименовать</button>
-        <button id="membersBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4">👥 Участники</button>
-        <button id="leaveBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4 text-orange-200">🚪 Выйти из альбома</button>
-        <button id="deleteAlbumBtn" class="btn glass w-full py-3 rounded-2xl text-left px-4 text-red-300">🗑 Удалить альбом</button>
+      <div>
+        <button id="renameBtn" class="btn glass">✏️ Переименовать</button>
+        <button id="membersBtn" class="btn glass">👥 Участники</button>
+        <button id="leaveBtn" class="btn glass">🚪 Выйти из альбома</button>
+        <button id="deleteAlbumBtn" class="btn glass">🗑 Удалить альбом</button>
       </div>
 
-      <div class="mt-3 text-xs opacity-70">
+      <div>
         Удаление фото: владелец / “может удалять” / автор фото.
       </div>
     </div>
   </div>
 
-  <div id="membersModal" class="modal items-end justify-center p-0">
-    <div class="w-full rounded-t-3xl glass p-4 shadow-soft max-h-[80vh] overflow-y-auto sheet">
-      <div class="flex items-center justify-between">
-        <div class="font-bold">👥 Участники</div>
-        <button id="membersClose" class="btn glass px-3 py-2 rounded-2xl">✕</button>
+  <div id="membersModal" class="moda">
+    <div class="glass">
+      <div>
+        <div>👥 Участники</div>
+        <button id="membersClose" class="btn glass">✕</button>
       </div>
 
-      <div id="membersOwnerHint" class="mt-2 text-xs opacity-70"></div>
+      <div id="membersOwnerHint"></div>
 
-      <button id="leaveBtnInside" class="hidden mt-3 btn glass w-full py-3 rounded-2xl text-orange-200">
+      <button id="leaveBtnInside" class="btn glass">
         🚪 Выйти из альбома
       </button>
 
-      <div id="membersAddBox" class="mt-3 p-3 rounded-2xl bg-white/5">
-        <div class="text-sm font-semibold mb-2">Добавить/обновить участника</div>
+      <div id="membersAddBox">
+        <div>Добавить/обновить участника</div>
 
-        <div class="grid gap-2">
-            <button id="pickBtn" class="btn glass w-full py-3 rounded-2xl">👤 Выбрать и добавить</button>
+        <div>
+            <button id="pickBtn" class="btn glass">👤 Выбрать и добавить</button>
         </div>
 
-        <div class="mt-3 grid gap-2">
-          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
+        <div>
+          <label class="btn glass">
             <div>
-              <div class="font-semibold text-sm">⬆️ Загрузка</div>
-              <div class="text-xs opacity-70">Разрешить добавлять фото</div>
+              <div>⬆️ Загрузка</div>
+              <div>Разрешить добавлять фото</div>
             </div>
-            <div class="flex items-center gap-3">
-              <input id="canUploadChk" type="checkbox" class="sr-only" checked>
-              <span class="tg-toggle tg-green"><span class="dot"></span></span>
+            <div>
+              <input id="canUploadChk" type="checkbox" checked>
+              <span class="tg-toggle"><span></span></span>
             </div>
           </label>
 
-          <label class="btn glass rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer select-none">
+          <label class="btn glass">
             <div>
-              <div class="font-semibold text-sm">🗑 Удаление</div>
-              <div class="text-xs opacity-70">Разрешить удалять фото</div>
+              <div>🗑 Удаление</div>
+              <div>Разрешить удалять фото</div>
             </div>
-            <div class="flex items-center gap-3">
-              <input id="canDeleteChk" type="checkbox" class="sr-only">
-              <span class="tg-toggle tg-red"><span class="dot"></span></span>
+            <div>
+              <input id="canDeleteChk" type="checkbox">
+              <span class="tg-toggle"><span></span></span>
             </div>
           </label>
         </div>
       </div>
 
-      <div class="mt-3 text-sm font-semibold">Список</div>
-      <div id="membersList" class="mt-2 grid gap-2"></div>
+      <div>Список</div>
+      <div id="membersList"></div>
     </div>
   </div>
 
-  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl glass shadow-soft text-sm hidden"></div>
+  <div id="toast" class="glass"></div>
 
   <script src="script.js"></script>
 </body>
