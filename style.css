@@ -1,32 +1,63 @@
 :root {
-  /* Цветовая палитра */
-  --bg-main: #000000;
-  --text-main: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.6);
-  --accent: #007aff; /* iOS Blue */
-  --danger: #ff3b30;
-  
-  /* Эффект стекла */
-  --glass-bg: rgba(30, 30, 30, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  /* ===== Eventry Sunset Palette ===== */
+  --plum: #510931;
+  --purple: #8D2376;
+  --red: #D22D3C;
+  --orange: #FC8415;
+  --yellow: #FEFB04;
+  --paper: #FAEDE4;
+
+  /* Тексты */
+  --text-main: var(--paper);
+  --text-secondary: rgba(250, 237, 228, 0.65);
+
+  /* Акценты */
+  --accent: var(--orange);
+  --accent-2: var(--yellow);
+  --danger: var(--red);
+
+  /* Фон (без чёрного, но тёмный) */
+  --bg-main:
+    radial-gradient(900px circle at 20% 0%, rgba(252, 132, 21, 0.22), transparent 55%),
+    radial-gradient(800px circle at 85% 18%, rgba(210, 45, 60, 0.18), transparent 60%),
+    radial-gradient(900px circle at 45% 100%, rgba(141, 35, 118, 0.22), transparent 60%),
+    var(--plum);
+
+  /* Поверхности */
+  --surface: rgba(81, 9, 49, 0.55);
+  --surface-2: rgba(141, 35, 118, 0.28);
+  --overlay: rgba(81, 9, 49, 0.86);
+  --deep: #2a041a;
+
+  /* Стекло */
+  --glass-bg: rgba(81, 9, 49, 0.45);
+  --glass-border: rgba(250, 237, 228, 0.14);
   --glass-blur: 20px;
-  
-  /* Размеры и отступы */
+
+  /* Радиусы и отступы */
   --radius-lg: 24px;
   --radius-md: 16px;
   --radius-sm: 12px;
   --padding-page: 20px;
 }
 
+/* чтобы width:100% НЕ вылезал из-за padding/border */
+*, *::before, *::after { box-sizing: border-box; }
+
 /* === БАЗОВЫЕ НАСТРОЙКИ === */
-body {
+html, body { height: 100%; }
+
+body{
   margin: 0;
-  background-color: var(--bg-main);
+  min-height: 100svh;
+  background: var(--bg-main);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--text-main);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-  font-size: 16px;
+  overflow-y: auto;
 }
 
 button {
@@ -54,6 +85,14 @@ button {
   transition: transform 0.2s, opacity 0.2s, background 0.2s;
   user-select: none;
 }
+
+/* карточки альбомов должны быть блоками */
+#albumsList .btn.w-full{
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+}
+
 .btn:active { transform: scale(0.96); opacity: 0.8; }
 
 /* === ЛЕЙАУТ И СТРУКТУРА (Clean CSS) === */
@@ -73,7 +112,22 @@ button {
   align-items: center;
   gap: 12px;
 }
-.brand-logo { font-size: 28px; }
+
+.brand-logo{
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-logo-img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
 .brand-name { 
   font-size: 11px; 
   text-transform: uppercase; 
@@ -93,18 +147,25 @@ button {
 #guestBanner {
   margin: 0 20px 20px;
   padding: 12px;
-  background: rgba(255, 204, 0, 0.15);
-  color: #ffcc00;
+  background: rgba(252, 132, 21, 0.14);
+  color: var(--accent-2);
+  border: 1px solid rgba(254, 251, 4, 0.18);
   border-radius: var(--radius-sm);
   font-size: 13px;
   text-align: center;
-  border: 1px solid rgba(255, 204, 0, 0.2);
 }
 
 /* Экраны */
-#screenAlbums, #screenAlbum {
+#screenAlbums{
   padding: 0 var(--padding-page);
-  padding-bottom: 140px; /* место под меню */
+  padding-bottom: 24px; /* тут НЕТ нижней панели */
+  animation: fadeEnter 0.4s ease;
+  overflow-x: hidden;
+}
+
+#screenAlbum{
+  padding: 0 var(--padding-page);
+  padding-bottom: 170px; /* место под bottom-toolbar */
   animation: fadeEnter 0.4s ease;
 }
 
@@ -131,7 +192,7 @@ button {
 
 .photo-tile {
   aspect-ratio: 1;
-  background: #1c1c1e;
+  background: var(--surface-2);  
   border-radius: 4px;
   overflow: hidden;
   position: relative;
@@ -175,7 +236,7 @@ button {
   flex-direction: column;
   gap: 8px;
   z-index: 90;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  box-shadow: 0 10px 40px rgba(42, 4, 26, 0.65);
 }
 
 .toolbar-grid {
@@ -203,7 +264,7 @@ button {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.85);
+  background: var(--overlay);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -219,8 +280,8 @@ button {
   width: 90%; max-width: 360px;
   padding: 24px;
   border-radius: 28px;
-  background: #1c1c1e;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
   transform: scale(0.9);
   transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   display: flex;
@@ -291,26 +352,26 @@ input[type="checkbox"] { display: none; }
 
 input[type="text"], input[type="number"] {
   width: 100%;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(81, 9, 49, 0.35);
+  border: 1px solid rgba(250, 237, 228, 0.18);
+  color: var(--text-main);
   padding: 14px;
   border-radius: 12px;
-  color: white;
   font-size: 16px;
 }
 
 /* === FULLSCREEN & CAMERA (Специфичные экраны) === */
-#fullModal { background: #000; }
+#fullModal { background: var(--deep); }
 #fullModal .modal-card { 
   width: 100%; height: 100%; max-width: none; 
-  background: none; border: none; padding: 0; border-radius: 0; 
+  background: var(--deep); border: none; padding: 0; border-radius: 0; 
 }
 .fs-controls {
   position: absolute; top: 0; left: 0; right: 0;
   padding: 50px 20px 20px;
   display: flex; justify-content: flex-end; gap: 12px;
   z-index: 10;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+  background: linear-gradient(to bottom, rgba(81,9,49,0.85), transparent);
 }
 .icon-btn {
   width: 40px; height: 40px;
