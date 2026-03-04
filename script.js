@@ -406,7 +406,9 @@ async function loadPhotos() {
       return;
     }
 
-    currentPerms = d.perms || { role: "viewer", is_owner: false, can_upload: false, can_delete_any: false };
+    if (d.perms) {
+      currentPerms = d.perms;
+    }
 
     const badge = currentPerms.is_owner
       ? "Владелец"
