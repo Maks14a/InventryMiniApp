@@ -133,6 +133,8 @@ function showAlbumScreen() {
   $("screenAlbums")?.classList.add("hidden");
   $("screenAlbum")?.classList.remove("hidden");
   $("topTitle").textContent = currentAlbumName || "Альбом";
+
+  $("topMenuBtn").classList.remove("hidden");   // ← добавить
   $("topMenuBtn").onclick = () => openManage();
 }
 
