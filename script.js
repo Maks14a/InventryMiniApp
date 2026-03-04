@@ -15,12 +15,7 @@ try { tg.ready?.(); } catch (_) {}
 const API = "https://eventry-api-vozmak.amvera.io";
 
 // ID пользователя из Telegram. Для тестов в браузере используем ID гостя (112)
-const params = new URLSearchParams(location.search)
-const DEV_UID = params.get("uid")
-
-const userId =
-  Number(tg.initDataUnsafe?.user?.id) ||
-  (DEV_UID ? Number(DEV_UID) : 112)
+const userId = Number(tg.initDataUnsafe?.user?.id) || 112;
 
 // DEV: локальная верстка без API/бота
 const DEV = (userId === 112) || (new URLSearchParams(location.search).get("dev") === "1");
