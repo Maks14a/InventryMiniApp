@@ -43,9 +43,22 @@
 
       <div class="bottom-toolbar glass">
         <div class="toolbar-grid">
-          <button id="galleryBtn" class="btn toolbar-btn">Галерея</button>
-          <button id="cameraBtn" class="btn toolbar-btn">Камера</button>
-          <button id="shareBtnBottom" class="btn toolbar-btn">Инфо</button>
+          <button id="cameraBtn" class="btn toolbar-btn">
+
+          <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="white"
+          d="M9 2L7 4H4C2.9 4 2 4.9 2 6V20C2 21.1 2.9 22 4 22H20C21.1 22 22 21.1 22 20V6C22 4.9 21.1 4 20 4H17L15 2H9ZM12 18C9.8 18 8 16.2 8 14C8 11.8 9.8 10 12 10C14.2 10 16 11.8 16 14C16 16.2 14.2 18 12 18Z"/>
+          </svg>
+
+          </button>
+          <button id="shareBtnBottom" class="btn toolbar-btn">
+
+          <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="white"
+          d="M18 16.1C17.24 16.1 16.56 16.39 16.04 16.86L8.91 12.7C8.96 12.47 9 12.24 9 12C9 11.76 8.96 11.53 8.91 11.3L15.96 7.19C16.5 7.7 17.22 8 18 8C19.66 8 21 6.66 21 5C21 3.34 19.66 2 18 2C16.34 2 15 3.34 15 5C15 5.24 15.04 5.47 15.09 5.7L8.04 9.81C7.5 9.3 6.78 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15C6.78 15 7.5 14.7 8.04 14.19L15.16 18.36C15.11 18.57 15.08 18.78 15.08 19C15.08 20.66 16.42 22 18.08 22C19.74 22 21.08 20.66 21.08 19C21.08 17.34 19.74 16 18.08 16Z"/>
+          </svg>
+
+          </button>
         </div>
         <div id="uploadHint">Только просмотр</div>
       </div>
@@ -56,7 +69,7 @@
   <div id="fullModal" class="modal-overlay">
     <div class="modal-card">
       <div class="fs-controls">
-        <button id="fullZoom" class="btn icon-btn">🔍</button>
+        
         <button id="fullDownload" class="btn icon-btn">⬇️</button>
         <button id="fullDelete" class="btn icon-btn hidden">🗑</button>
         <button id="fullClose" class="btn icon-btn">✕</button>
@@ -81,9 +94,16 @@
 
       <video id="camVideo" playsinline autoplay muted></video>
       <canvas id="camCanvas"></canvas>
+      <div id="camPreview" class="hidden">
+        <img id="previewImg">
+
+        <div class="preview-actions">
+          <button id="previewUpload">Загрузить</button>
+          <button id="previewCancel">Удалить</button>
+        </div>
+      </div>
 
       <div class="cam-overlay-bottom">
-        <button id="camFallback" class="btn glass" style="padding: 10px 20px; border-radius: 20px; font-size:12px;">🗂 Файл</button>
         <button id="camShot" class="btn"></button>
         <div style="width: 60px"></div> </div>
     </div>
@@ -149,7 +169,6 @@
         <button id="deleteAlbumBtn" class="btn action-btn text-danger">🗑 Удалить альбом</button>
       </div>
       
-      <div class="text-center text-xs opacity-30 mt-2">ID: ...</div>
     </div>
   </div>
 

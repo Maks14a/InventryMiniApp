@@ -15,7 +15,12 @@ try { tg.ready?.(); } catch (_) {}
 const API = "https://eventry-api-vozmak.amvera.io";
 
 // ID пользователя из Telegram. Для тестов в браузере используем ID гостя (112)
-const userId = Number(tg.initDataUnsafe?.user?.id) || 112;
+const params = new URLSearchParams(location.search)
+const DEV_UID = params.get("uid")
+
+const userId =
+  Number(tg.initDataUnsafe?.user?.id) ||
+  (DEV_UID ? Number(DEV_UID) : 112)
 
 // DEV: локальная верстка без API/бота
 const DEV = (userId === 112) || (new URLSearchParams(location.search).get("dev") === "1");
@@ -39,15 +44,11 @@ let currentPerms = {
 
 let camStream = null;
 let cameraFacing = "environment";
+let previewBlob = null;
 
 // album photos cache for fullscreen swipe
 let albumPhotos = []; // [{url, uploaded_by}]
 let fullIndex = 0;
-
-// zoom state (for current slide)
-let zoom = 1;
-let panX = 0;
-let panY = 0;
 
 // swipe/gesture state
 let dragging = false;
@@ -58,7 +59,7 @@ let lastTapAt = 0;
 
 let pinching = false;
 let pinchStartDist = 0;
-let pinchStartZoom = 1;
+
 
 const $ = (id) => document.getElementById(id);
 
@@ -79,6 +80,50 @@ function escapeHtml(s) {
     "\"": "&quot;",
     "'": "&#039;",
   }[m]));
+}
+
+async function openCamera(){
+
+  const modal = $("cameraModal")
+  modal.classList.add("show")
+
+  try{
+
+    camStream = await navigator.mediaDevices.getUserMedia({
+    video:{
+    facingMode: cameraFacing,
+    width:{ideal:1920},
+    height:{ideal:1080}
+  }
+  })
+
+  $("camVideo").srcObject = camStream
+
+  }catch(e){
+  toast("Камера не доступна")
+  }
+
+}
+
+function roleIcon(role){
+  if(role === "owner"){
+  return `<svg width="18" height="18" viewBox="0 0 24 24">
+  <path fill="white"
+  d="M12 2L15 8L22 9L17 14L18 21L12 18L6 21L7 14L2 9L9 8Z"/>
+  </svg>`
+  }
+
+  if(role === "participant"){
+  return `<svg width="18" height="18" viewBox="0 0 24 24">
+  <path fill="white"
+  d="M12 12C14.2 12 16 10.2 16 8C16 5.8 14.2 4 12 4C9.8 4 8 5.8 8 8C8 10.2 9.8 12 12 12ZM12 14C7.6 14 4 16.2 4 19V20H20V19C20 16.2 16.4 14 12 14Z"/>
+  </svg>`
+  }
+
+  return `<svg width="18" height="18" viewBox="0 0 24 24">
+  <path fill="white"
+  d="M12 4A8 8 0 1 0 12 20A8 8 0 1 0 12 4Z"/>
+  </svg>`
 }
 
 function showAlbumsScreen() {
@@ -209,7 +254,12 @@ async function loadAlbums() {
       card.onclick = () => openAlbum(a.code, a.name);
       card.innerHTML = `
         <div class="flex items-center gap-4 text-left">
-          <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl shadow-inner">🖼</div>
+        <div class="album-cover">
+        ${a.cover_url
+          ? `<img src="${a.cover_url}">`
+          : `<span>${escapeHtml(a.name[0])}</span>`
+        }
+        </div>
           <div>
             <div class="font-bold text-lg leading-tight">${escapeHtml(a.name)}</div>
             <div class="text-xs opacity-50 uppercase tracking-widest">
@@ -269,16 +319,12 @@ window.openAlbum = async function openAlbum(code, name) {
     currentPerms = devPermsByRole(a?.role || "owner");
 
     const camBtn = $("cameraBtn");
-    const galleryBtn = $("galleryBtn");
+    
 
     // upload actions
     if (camBtn) {
       camBtn.style.opacity = currentPerms.can_upload ? "1" : "0.3";
       camBtn.style.pointerEvents = currentPerms.can_upload ? "auto" : "none";
-    }
-    if (galleryBtn) {
-      galleryBtn.style.opacity = currentPerms.can_upload ? "1" : "0.3";
-      galleryBtn.style.pointerEvents = currentPerms.can_upload ? "auto" : "none";
     }
 
     $("topMenuBtn").classList.toggle("hidden", !(currentPerms.is_owner || currentPerms.is_moderator));
@@ -295,7 +341,7 @@ window.openAlbum = async function openAlbum(code, name) {
       currentPerms = data.perms;
 
       const camBtn = $("cameraBtn");
-      const galleryBtn = $("galleryBtn");
+      
 
       // Блокируем кнопки загрузки если нельзя
       if (camBtn) {
@@ -368,16 +414,30 @@ async function loadPhotos() {
     currentPerms = d.perms || { role: "viewer", is_owner: false, can_upload: false, can_delete_any: false };
 
     const badge = currentPerms.is_owner
-      ? "👑 Владелец"
-      : (currentPerms.can_upload ? "✅ Участник" : "👀 Просмотр");
+      ? "Владелец"
+      : (currentPerms.can_upload ? "Участник" : "Просмотр");
     $("permBadge").textContent = badge;
 
     $("uploadHint").textContent = currentPerms.can_upload
       ? "Можно добавлять фото. Удаление: владелец/модератор/автор фото."
       : "Нет прав на загрузку. Попроси владельца выдать доступ.";
 
-    const items = d.items || [];
-    albumPhotos = items.map((p) => ({ url: p.url, uploaded_by: p.uploaded_by || 0 }));
+    const items = d.photos || [];
+
+    albumPhotos = items.map((p) => ({
+      url: p.url,
+      uploaded_by: p.uploaded_by || 0
+    }));
+
+    const uploadedByUser = albumPhotos.filter(p => p.uploaded_by === userId).length;
+
+    let remaining = "∞";
+
+    if (currentPerms.max_photos_per_user) {
+      remaining = currentPerms.max_photos_per_user - uploadedByUser;
+    }
+
+    $("uploadHint").textContent = `Осталось фото: ${remaining}`;
 
     if (items.length === 0) {
       $("photoGrid").innerHTML = "<div class='text-center opacity-30 py-10'>В альбоме пока нет фото</div>";
@@ -420,40 +480,32 @@ function getCurrentImgEl() {
   return null;
 }
 
-function applyZoom() {
-  const img = getCurrentImgEl();
-  if (!img) return;
-  img.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-}
-
-function resetZoom() {
-  zoom = 1;
-  panX = 0;
-  panY = 0;
-  applyZoom();
-}
-
 function renderFullSlides() {
+
   const track = $("fullTrack");
   if (!track) return;
 
   track.innerHTML = "";
-  const vw = getViewerRect().width;
 
   albumPhotos.forEach((p, i) => {
-    const slide = document.createElement("div");
-    slide.className = "full-slide" + (i === fullIndex ? " active" : "");
-    slide.style.transform = `translateX(${(i - fullIndex) * vw}px)`;
-    slide.innerHTML = `<img src="${p.url}" draggable="false" />`;
-    track.appendChild(slide);
+
+  const slide = document.createElement("div");
+  slide.className = "full-slide";
+
+  slide.innerHTML = `<img src="${p.url}" draggable="false">`;
+
+  track.appendChild(slide);
+
   });
 
-  // delete button
+  track.style.transition = "none";
+  track.style.transform = `translateX(-${fullIndex * window.innerWidth}px)`;
+
   const del = $("fullDelete");
   const can = canDeletePhoto(albumPhotos[fullIndex]);
+
   if (del) del.classList.toggle("hidden", !can);
 
-  resetZoom();
 }
 
 function openFullAt(index) {
@@ -466,17 +518,6 @@ window.openFullAtUrl = function openFullAtUrl(url) {
   const idx = albumPhotos.findIndex((p) => p.url === url);
   openFullAt(idx >= 0 ? idx : 0);
 };
-
-function toggleZoom() {
-  if (zoom === 1) {
-    zoom = 2;
-  } else {
-    zoom = 1;
-    panX = 0;
-    panY = 0;
-  }
-  applyZoom();
-}
 
 function distance(t1, t2) {
   const dx = t1.clientX - t2.clientX;
@@ -491,7 +532,6 @@ function onTouchStart(e) {
   if (e.touches && e.touches.length === 2) {
     pinching = true;
     pinchStartDist = distance(e.touches[0], e.touches[1]);
-    pinchStartZoom = zoom;
     return;
   }
 
@@ -501,14 +541,6 @@ function onTouchStart(e) {
   startX = t.clientX;
   startY = t.clientY;
   dx = 0;
-
-  // double tap
-  if (now - lastTapAt < 260) {
-    toggleZoom();
-    lastTapAt = 0;
-  } else {
-    lastTapAt = now;
-  }
 }
 
 function onTouchMove(e) {
@@ -517,8 +549,6 @@ function onTouchMove(e) {
   if (pinching && e.touches && e.touches.length === 2) {
     const dist = distance(e.touches[0], e.touches[1]);
     const factor = dist / (pinchStartDist || dist);
-    zoom = clamp(pinchStartZoom * factor, 1, 4);
-    applyZoom();
     e.preventDefault();
     return;
   }
@@ -531,24 +561,15 @@ function onTouchMove(e) {
   const ddx = mx - startX;
   const ddy = my - startY;
 
-  if (zoom > 1.01) {
-    panX += ddx;
-    panY += ddy;
-    startX = mx;
-    startY = my;
-    applyZoom();
-    e.preventDefault();
-    return;
-  }
 
   dx = ddx;
   const track = $("fullTrack");
-  const vw = getViewerRect().width;
+  const vw = window.innerWidth;
   if (!track) return;
 
   // move all slides with dx
   Array.from(track.children).forEach((slide, i) => {
-    slide.style.transform = `translateX(${(i - fullIndex) * vw + dx}px)`;
+    track.style.transform = `translateX(${-(fullIndex * window.innerWidth) + dx}px)`
   });
   e.preventDefault();
 }
@@ -559,13 +580,15 @@ function onTouchEnd() {
   if (!dragging) return;
   dragging = false;
 
-  if (zoom > 1.01) return;
 
   const vw = getViewerRect().width;
   if (Math.abs(dx) > vw * 0.18) {
     if (dx < 0 && fullIndex < albumPhotos.length - 1) fullIndex++;
     if (dx > 0 && fullIndex > 0) fullIndex--;
   }
+  const track = $("fullTrack")
+  track.style.transition = "transform .25s ease"
+  track.style.transform = `translateX(-${fullIndex * window.innerWidth}px)`
   renderFullSlides();
 }
 
@@ -586,34 +609,17 @@ function attachFullGestures() {
   window.addEventListener("mouseup", () => onTouchEnd());
 }
 
-function downloadCurrent() {
-  const photo = albumPhotos[fullIndex];
-  if (!photo?.url) { toast("Нет файла"); return; }
-  try {
-    fetch(photo.url, { mode: "cors" })
-      .then((resp) => resp.blob())
-      .then((blob) => {
-        const ext = (blob.type && blob.type.includes("png")) ? "png" : "jpg";
-        const name = `iventry_${Date.now()}.${ext}`;
+function downloadCurrent(){
+  const photo = albumPhotos[fullIndex]
 
-        const a = document.createElement("a");
-        const objectUrl = URL.createObjectURL(blob);
-        a.href = objectUrl;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(objectUrl);
-        toast("⬇️ Скачивание началось");
-      })
-      .catch(() => {
-        tg.openLink?.(photo.url);
-        toast("Открыл файл для сохранения");
-      });
-  } catch (_) {
-    tg.openLink?.(photo.url);
-    toast("Открыл файл для сохранения");
+  if(!photo?.url){
+  toast("Фото не найдено")
+  return
   }
+
+  tg.openTelegramLink(
+  `https://t.me/Iventry_Bot?start=dl_${encodeURIComponent(photo.url)}`
+  )
 }
 
 async function deleteCurrentFull() {
@@ -785,6 +791,7 @@ async function flipCamera() {
 
 async function takeShot() {
   try {
+
     const v = $("camVideo");
     if (!v || !v.videoWidth) {
       toast("Нет видео — жми «Файл»");
@@ -794,6 +801,7 @@ async function takeShot() {
     const canvas = $("camCanvas");
     canvas.width = v.videoWidth;
     canvas.height = v.videoHeight;
+
     const ctx = canvas.getContext("2d");
 
     if (cameraFacing === "user") {
@@ -806,15 +814,22 @@ async function takeShot() {
       ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
     }
 
-    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
-    if (!blob) {
-      toast("Не удалось сделать фото");
-      return;
-    }
-    await uploadFile(new File([blob], "camera.jpg", { type: "image/jpeg" }));
+  const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+  if (!blob) {
+    toast("Не удалось сделать фото");
+    return;
+  }
+
+  previewBlob = blob;
+
+  const url = URL.createObjectURL(blob);
+  $("previewImg").src = url;
+
+  $("camPreview").classList.remove("hidden");
+
   } catch (e) {
     console.log(e);
-    toast("Ошибка камеры — жми «Файл»");
+    toast("Ошибка камеры");
   }
 }
 
@@ -1301,7 +1316,6 @@ if ($("fullClose")) $("fullClose").onclick = () => $("fullModal").classList.remo
 if ($("fullModal")) $("fullModal").onclick = (e) => { if (e.target === $("fullModal")) $("fullModal").classList.remove("show"); };
 if ($("fullDownload")) $("fullDownload").onclick = downloadCurrent;
 if ($("fullDelete")) $("fullDelete").onclick = deleteCurrentFull;
-if ($("fullZoom")) $("fullZoom").onclick = toggleZoom;
 
 // close when tap outside (other modals)
 for (const id of ["cameraModal", "manageModal", "membersModal", "shareModal"]) {
@@ -1325,3 +1339,80 @@ attachFullGestures();
 
 showAlbumsScreen();
 loadAlbums();
+$("cameraBtn")?.addEventListener("click", ()=>{
+if(!currentPerms.can_upload){
+toast("Нет доступа к загрузке")
+return
+}
+
+openCamera()
+})
+
+$("previewCancel").onclick = () => {
+  previewBlob = null;
+  $("camPreview").classList.add("hidden");
+};
+
+$("previewUpload").onclick = async () => {
+
+  if (!previewBlob) {
+    toast("Нет фото");
+    return;
+  }
+
+  await uploadFile(
+    new File([previewBlob], "camera.jpg", { type: "image/jpeg" })
+  );
+
+  previewBlob = null;
+
+  $("camPreview").classList.add("hidden");
+};
+
+// FIX: галерея → preview
+document.querySelectorAll('input[type="file"]').forEach(input => {
+
+  input.addEventListener("change", (e) => {
+
+    const file = e.target.files?.[0];
+    if(!file) return;
+
+    previewBlob = file;
+
+    if($("previewImg")){
+      $("previewImg").src = URL.createObjectURL(file);
+    }
+
+    if($("camPreview")){
+      $("camPreview").classList.remove("hidden");
+    }
+
+  });
+
+});
+
+$("fullDownload").onclick = async () => {
+
+  const photo = albumPhotos[fullIndex]
+  if(!photo) return
+
+  try{
+
+    const r = await fetch(
+      `${API}/api/download_photo?url=${encodeURIComponent(photo.url)}&user_id=${userId}`
+    )
+
+    const d = await r.json()
+
+    if(!r.ok){
+      toast(d.detail || "Ошибка")
+      return
+    }
+
+    toast("Фото отправлено в Telegram")
+
+  }catch(e){
+    toast("Ошибка соединения")
+  }
+
+}
