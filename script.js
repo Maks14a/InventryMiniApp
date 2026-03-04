@@ -417,7 +417,7 @@ async function loadPhotos() {
       ? "Можно добавлять фото. Удаление: владелец/модератор/автор фото."
       : "Нет прав на загрузку. Попроси владельца выдать доступ.";
 
-    const items = d.photos || [];
+    const items = d.photos || d.items || [];
 
     albumPhotos = items.map((p) => ({
       url: p.url,
