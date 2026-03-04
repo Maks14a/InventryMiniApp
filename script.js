@@ -418,7 +418,7 @@ async function loadPhotos() {
       : "Нет прав на загрузку. Попроси владельца выдать доступ.";
 
     const items = d.photos || d.items || [];
-    alert("photos loaded: " + items.length)
+    // alert("photos loaded: " + items.length)
 
     albumPhotos = items.map((p) => ({
       url: p.url,
@@ -1333,8 +1333,11 @@ window.addEventListener("resize", () => {
 
 attachFullGestures();
 
-showAlbumsScreen();
-loadAlbums();
+document.addEventListener("DOMContentLoaded", () => {
+  showAlbumsScreen();
+  loadAlbums();
+});
+
 $("cameraBtn")?.addEventListener("click", ()=>{
 if(!currentPerms.can_upload){
 toast("Нет доступа к загрузке")
