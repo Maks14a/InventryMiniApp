@@ -12,7 +12,8 @@ const tg = window.Telegram?.WebApp || {
 try { tg.expand?.(); } catch (_) {}
 try { tg.ready?.(); } catch (_) {}
 
-const API = "https://eventry-api-vozmak.amvera.io";
+// const API = "https://eventry-api-vozmak.amvera.io";
+const API = "https://api-horobi3906.amvera.io/";  // временно
 
 // ID пользователя из Telegram. Для тестов в браузере используем ID гостя (112)
 const userId = Number(tg.initDataUnsafe?.user?.id) || 112;
@@ -289,7 +290,12 @@ async function loadAlbums() {
       card.onclick = () => openAlbum(a.code, a.name);
       card.innerHTML = `
         <div class="flex items-center gap-4 text-left">
-          <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl shadow-inner">🖼</div>
+          <div class="album-cover">
+            ${a.cover_url
+              ? `<img src="${a.cover_url}">`
+              : `<span>${escapeHtml(a.name[0])}</span>`
+            }
+            </div>
           <div>
             <div class="font-bold text-lg leading-tight">${escapeHtml(a.name)}</div>
             <div class="text-xs opacity-50 uppercase tracking-widest">${a.role === "owner" ? "Создатель" : "Участник"}</div>
