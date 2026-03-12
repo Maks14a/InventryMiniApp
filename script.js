@@ -407,9 +407,14 @@ window.openAlbum = async function openAlbum(code, name) {
 };
 
 async function loadPhotos() {
+  function setLimitText(value) {
+    const text = `Лимит: ${value}`;
+    if ($("uploadHint")) $("uploadHint").textContent = text;
+    if ($("camLimitBadge")) $("camLimitBadge").textContent = text;
+  }
   $("photoGrid").innerHTML = "<div class='text-center opacity-50 py-10'>Загрузка фото...</div>";
   $("permBadge").textContent = "Загрузка…";
-  $("uploadHint").textContent = "";
+  setLimitText("—");
 
   // DEV: без API
   if (DEV) {
@@ -418,9 +423,7 @@ async function loadPhotos() {
     const badge = currentPerms.is_owner ? "Владелец" : (currentPerms.can_upload ? "Участник" : "Просмотр");
     $("permBadge").textContent = badge;
 
-    $("uploadHint").textContent = currentPerms.can_upload
-      ? "Можно добавлять фото (локально)."
-      : "Только просмотр (локально).";
+  setLimitText("—");
 
     albumPhotos = items.map((p) => ({ url: p.url, uploaded_by: p.uploaded_by || 0 }));
 
@@ -463,9 +466,7 @@ async function loadPhotos() {
       : (currentPerms.can_upload ? "Участник" : "Просмотр");
     $("permBadge").textContent = badge;
 
-    $("uploadHint").textContent = currentPerms.can_upload
-      ? "Можно добавлять фото. Удаление: владелец/модератор/автор фото."
-      : "Нет прав на загрузку. Попроси владельца выдать доступ.";
+    setLimitText("—");
 
     const items = d.photos || d.items || [];
     // alert("photos loaded: " + items.length)
@@ -483,7 +484,7 @@ async function loadPhotos() {
       remaining = currentPerms.max_photos_per_user - uploadedByUser;
     }
 
-    $("uploadHint").textContent = `Осталось фото: ${remaining}`;
+    setLimitText(remaining);
 
     if (items.length === 0) {
       $("photoGrid").innerHTML = "<div class='text-center opacity-30 py-10'>В альбоме пока нет фото</div>";
@@ -1274,6 +1275,12 @@ window.kickMember = async function kickMember(memberId) {
     toast("Нет прав");
     return;
   }
+
+  if (Number(memberId) === Number(userId)) {
+    toast("Нельзя удалить себя");
+    return;
+  }
+
   if (!confirm("Удалить участника из альбома?")) return;
 
   if (DEV) {
@@ -1285,8 +1292,29 @@ window.kickMember = async function kickMember(memberId) {
     return;
   }
 
-  // если будет API — можно добавить. Пока оставим как было:
-  toast("Удаление временно недоступно через UI");
+  const fd = new FormData();
+  fd.append("album_code", currentAlbumCode);
+  fd.append("user_id", userId);
+  fd.append("target_id", memberId);
+
+  try {
+    const res = await fetch(`${API}/api/member/kick`, {
+      method: "POST",
+      body: fd
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      toast(data?.detail || "Не удалось удалить участника");
+      return;
+    }
+
+    toast("Участник удалён");
+    await loadMembers();
+  } catch (e) {
+    toast("Ошибка сети");
+  }
 };
 
 let currentMemberActions = null;
