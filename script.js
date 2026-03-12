@@ -891,11 +891,20 @@ function cameraFallback() {
 function openManage() {
   if (!currentAlbumCode) return;
 
-  $("renameBtn").style.display = currentPerms.is_owner ? "block" : "none";
-  $("deleteAlbumBtn").style.display = currentPerms.is_owner ? "block" : "none";
-  $("leaveBtn").style.display = currentPerms.is_owner ? "none" : "block";
+  const renameBtn = $("renameBtn");
+  const changeCoverBtn = $("changeCoverBtn");
+  const membersBtn = $("membersBtn");
+  const deleteAlbumBtn = $("deleteAlbumBtn");
+  const leaveBtn = $("leaveBtn");
+  const manageModal = $("manageModal");
 
-  $("manageModal").classList.add("show");
+  if (renameBtn) renameBtn.style.display = currentPerms.is_owner ? "flex" : "none";
+  if (changeCoverBtn) changeCoverBtn.style.display = currentPerms.is_owner ? "flex" : "none";
+  if (membersBtn) membersBtn.style.display = "flex";
+  if (deleteAlbumBtn) deleteAlbumBtn.style.display = currentPerms.is_owner ? "flex" : "none";
+  if (leaveBtn) leaveBtn.style.display = currentPerms.is_owner ? "none" : "flex";
+
+  if (manageModal) manageModal.classList.add("show");
 }
 
 function getShareRights() {
@@ -906,12 +915,7 @@ function getShareRights() {
 }
 
 function getShareMaxUses() {
-  const raw = ($("shareMaxUses").value || "").trim();
-  let n = parseInt(raw, 10);
-  if (Number.isNaN(n)) n = 20;
-  if (n < 0) n = 20;
-  if (n > 10000) n = 10000;
-  return n;
+  return 1;
 }
 
 async function createInviteLink(canUpload, canDelete, maxUses) {
@@ -949,7 +953,7 @@ async function shareByLink() {
     return;
   }
   const rights = getShareRights();
-  const maxUses = getShareMaxUses();
+  const maxUses = 1;
 
   const link = await createInviteLink(rights.can_upload, rights.can_delete, maxUses);
   if (!link) return;
@@ -1119,18 +1123,8 @@ async function leaveAlbum() {
 async function openMembers() {
   $("membersModal").classList.add("show");
 
-  if (currentPerms.is_owner) {
-    $("membersOwnerHint").textContent = "👑 Ты владелец — можешь менять роли и кикать участников.";
-    $("membersAddBox").style.display = "block";
-    $("leaveBtnInside").classList.add("hidden");
-  } else if (currentPerms.is_moderator) {
-    $("membersOwnerHint").textContent = "🛠 Ты модератор — можешь кикать участников.";
-    $("membersAddBox").style.display = "none";
-    $("leaveBtnInside").classList.remove("hidden");
-  } else {
-    $("membersOwnerHint").textContent = "👤 Ты участник. Можешь выйти из альбома.";
-    $("membersAddBox").style.display = "none";
-    $("leaveBtnInside").classList.remove("hidden");
+  if ($("leaveBtnInside")) {
+    $("leaveBtnInside").classList.toggle("hidden", !!currentPerms.is_owner);
   }
 
   await loadMembers();
@@ -1139,55 +1133,84 @@ async function openMembers() {
 async function loadMembers() {
   const list = $("membersList");
   if (!list) return;
-  list.innerHTML = "<div class='text-center opacity-50 py-4'>Загрузка...</div>";
+
+  list.innerHTML = "<div class='member-empty'>Загрузка...</div>";
 
   const roleLabels = {
-    owner: "👑 Владелец",
-    moderator: "🛠 Модер",
-    participant: "👤 Участник",
-    viewer: "👁 Наблюдатель",
+    owner: "Владелец",
+    moderator: "Модератор",
+    participant: "Участник",
+    viewer: "Наблюдатель",
   };
+
+  function displayNameOf(m) {
+    return escapeHtml(m.first_name || (m.username ? "@" + m.username : "Гость"));
+  }
+
+  function initialOf(m) {
+    return (m.first_name || m.username || "U").toString().charAt(0).toUpperCase();
+  }
+
+  function avatarHtml(m) {
+    if (m.user_id && Number(m.user_id) !== 112) {
+      return `<img src="${API}/api/avatar/${m.user_id}" alt="">`;
+    }
+    return `<span>${initialOf(m)}</span>`;
+  }
+
+  function canOpenActionsFor(m) {
+    if (m.user_id == userId) return false;
+    if (m.role === "owner") return false;
+    return !!(currentPerms.is_owner || currentPerms.is_moderator);
+  }
+
+  function renderRow(m) {
+    const btn = document.createElement("button");
+    btn.className = "btn member-row";
+    btn.type = "button";
+
+    const label = roleLabels[m.role] || "Участник";
+    const clickable = canOpenActionsFor(m);
+
+    btn.innerHTML = `
+      <div class="member-avatar">
+        ${avatarHtml(m)}
+      </div>
+
+      <div class="member-main">
+        <div class="member-name">${displayNameOf(m)}</div>
+        <div class="member-role">${label}</div>
+      </div>
+
+      <div class="member-arrow">
+        ${clickable ? `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 6l6 6-6 6"></path>
+          </svg>
+        ` : ``}
+      </div>
+    `;
+
+    if (clickable) {
+      btn.onclick = () => openMemberActions(m);
+    } else {
+      btn.style.opacity = "0.92";
+    }
+
+    return btn;
+  }
 
   // DEV
   if (DEV) {
     const members = devGetMembers(currentAlbumCode);
     list.innerHTML = "";
 
-    members.forEach((m) => {
-      const item = document.createElement("div");
-      item.className = "btn glass rounded-2xl px-4 py-3 flex flex-col gap-2 pointer-events-none";
+    if (!members.length) {
+      list.innerHTML = "<div class='member-empty'>Пока никого нет</div>";
+      return;
+    }
 
-      const label = roleLabels[m.role] || "Участник";
-      const initial = (m.first_name || m.username || "U").toString().charAt(0).toUpperCase();
-
-      item.innerHTML = `
-        <div class="flex items-center justify-between w-full">
-          <div class="flex items-center gap-3 text-left">
-             <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-bold text-lg">${initial}</div>
-             <div class="flex flex-col">
-                <div class="font-semibold text-sm">${escapeHtml(m.first_name || (m.username ? "@"+m.username : "Гость"))}</div>
-                <div class="text-[10px] opacity-60 uppercase tracking-tighter">${label}</div>
-             </div>
-          </div>
-          <div class="flex items-center gap-1 pointer-events-auto">
-            ${(currentPerms.is_owner || currentPerms.is_moderator) && m.role !== "owner" && m.user_id != userId
-              ? `<button onclick="kickMember(${m.user_id})" class="text-red-400 p-2 active:scale-90 transition-transform">❌</button>`
-              : ""}
-          </div>
-        </div>
-
-        ${currentPerms.is_owner && m.role !== "owner" ? `
-          <div class="flex gap-2 mt-1 pointer-events-auto">
-            <button onclick="changeRole(${m.user_id}, 'moderator')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Модератор</button>
-            <button onclick="changeRole(${m.user_id}, 'participant')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Участник</button>
-            <button onclick="changeRole(${m.user_id}, 'viewer')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Наблюдатель</button>
-          </div>
-        ` : ""}
-      `;
-      list.appendChild(item);
-    });
-
-    if (members.length === 0) list.innerHTML = "<div class='text-center opacity-30'>Пока никого нет</div>";
+    members.forEach((m) => list.appendChild(renderRow(m)));
     return;
   }
 
@@ -1195,47 +1218,17 @@ async function loadMembers() {
   try {
     const res = await fetch(`${API}/api/album/members?album_code=${currentAlbumCode}&user_id=${userId}`);
     const data = await res.json();
+
     list.innerHTML = "";
 
-    if (!data.members || data.members.length === 0) {
-      list.innerHTML = "<div class='text-center opacity-30'>Пока никого нет</div>";
+    if (!data.members || !data.members.length) {
+      list.innerHTML = "<div class='member-empty'>Пока никого нет</div>";
       return;
     }
 
-    data.members.forEach((m) => {
-      const item = document.createElement("div");
-      item.className = "btn glass rounded-2xl px-4 py-3 flex flex-col gap-2 pointer-events-none";
-
-      const label = roleLabels[m.role] || "Участник";
-      const initial = (m.first_name || m.username || "U").toString().charAt(0).toUpperCase();
-
-      item.innerHTML = `
-        <div class="flex items-center justify-between w-full">
-          <div class="flex items-center gap-3 text-left">
-             <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-bold text-lg">${initial}</div>
-             <div class="flex flex-col">
-                <div class="font-semibold text-sm">${escapeHtml(m.first_name || (m.username ? "@"+m.username : "Гость"))}</div>
-                <div class="text-[10px] opacity-60 uppercase tracking-tighter">${label}</div>
-             </div>
-          </div>
-          <div class="flex items-center gap-1 pointer-events-auto">
-            ${(currentPerms.is_owner || currentPerms.is_moderator) && m.role !== "owner" && m.user_id != userId
-              ? `<button onclick="kickMember(${m.user_id})" class="text-red-400 p-2 active:scale-90 transition-transform">❌</button>`
-              : ""}
-          </div>
-        </div>
-
-        ${currentPerms.is_owner && m.role !== "owner" ? `
-          <div class="flex gap-2 mt-1 pointer-events-auto">
-            <button onclick="changeRole(${m.user_id}, 'moderator')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Модератор</button>
-            <button onclick="changeRole(${m.user_id}, 'participant')" class="text-[10px] bg-white/10 px-2 py-1 rounded-lg border border-white/10 active:bg-white/20">Участник</button>
-          </div>
-        ` : ""}
-      `;
-      list.appendChild(item);
-    });
+    data.members.forEach((m) => list.appendChild(renderRow(m)));
   } catch (e) {
-    list.innerHTML = "<div class='text-center text-red-400'>Ошибка загрузки</div>";
+    list.innerHTML = "<div class='member-empty'>Не удалось загрузить список</div>";
   }
 }
 
@@ -1296,6 +1289,97 @@ window.kickMember = async function kickMember(memberId) {
   toast("Удаление временно недоступно через UI");
 };
 
+let currentMemberActions = null;
+
+function openMemberActions(member) {
+  currentMemberActions = member;
+
+  const body = $("memberActionsBody");
+  const title = $("memberActionsTitle");
+  if (!body || !title) return;
+
+  const roleLabels = {
+    owner: "Владелец",
+    moderator: "Модератор",
+    participant: "Участник",
+    viewer: "Наблюдатель",
+  };
+
+  const displayName = escapeHtml(member.first_name || (member.username ? "@" + member.username : "Гость"));
+  const roleLabel = roleLabels[member.role] || "Участник";
+  const initial = (member.first_name || member.username || "U").toString().charAt(0).toUpperCase();
+
+  title.textContent = "Управление";
+
+  body.innerHTML = `
+    <div class="member-preview">
+      <div class="member-avatar">
+        ${member.user_id && Number(member.user_id) !== 112
+          ? `<img src="${API}/api/avatar/${member.user_id}" alt="">`
+          : `<span>${initial}</span>`
+        }
+      </div>
+      <div>
+        <div class="member-preview-name">${displayName}</div>
+        <div class="member-preview-role">${roleLabel}</div>
+      </div>
+    </div>
+  `;
+
+  if (currentPerms.is_owner) {
+    body.innerHTML += `
+      <button class="btn action-btn" onclick="changeRole(${member.user_id}, 'moderator'); closeMemberActions();">
+        <span class="action-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l2.8 5.67L21 9.6l-4.5 4.39L17.56 21 12 18.1 6.44 21 7.5 13.99 3 9.6l6.2-.93L12 3Z"></path>
+          </svg>
+        </span>
+        <span class="action-label">Сделать модератором</span>
+      </button>
+
+      <button class="btn action-btn" onclick="changeRole(${member.user_id}, 'participant'); closeMemberActions();">
+        <span class="action-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"></circle>
+            <path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path>
+          </svg>
+        </span>
+        <span class="action-label">Сделать участником</span>
+      </button>
+
+      <button class="btn action-btn" onclick="changeRole(${member.user_id}, 'viewer'); closeMemberActions();">
+        <span class="action-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </span>
+        <span class="action-label">Сделать наблюдателем</span>
+      </button>
+    `;
+  }
+
+  if (currentPerms.is_owner || currentPerms.is_moderator) {
+    body.innerHTML += `
+      <button class="btn action-btn member-action-danger" onclick="kickMember(${member.user_id}); closeMemberActions();">
+        <span class="action-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18"></path>
+            <path d="M6 6l12 12"></path>
+          </svg>
+        </span>
+        <span class="action-label">Удалить из альбома</span>
+      </button>
+    `;
+  }
+
+  $("memberActionsModal")?.classList.add("show");
+}
+
+function closeMemberActions() {
+  $("memberActionsModal")?.classList.remove("show");
+}
+
 /* ==========================
    UI binds
    ========================== */
@@ -1336,7 +1420,6 @@ if ($("shareBtnBottom")) {
 }
 
 if ($("shareClose")) $("shareClose").onclick = () => $("shareModal").classList.remove("show");
-if ($("shareNoLimit")) $("shareNoLimit").onclick = () => { $("shareMaxUses").value = "0"; toast("Без лимита ✅"); };
 if ($("shareLinkBtn")) $("shareLinkBtn").onclick = async () => { await shareByLink(); };
 if ($("sharePersonBtn")) $("sharePersonBtn").onclick = () => { sharePersonToBot(); };
 
@@ -1347,6 +1430,7 @@ if ($("camFlip")) $("camFlip").onclick = flipCamera;
 
 if ($("manageClose")) $("manageClose").onclick = () => $("manageModal").classList.remove("show");
 if ($("membersClose")) $("membersClose").onclick = () => $("membersModal").classList.remove("show");
+if ($("memberActionsClose")) $("memberActionsClose").onclick = closeMemberActions;
 
 if ($("renameBtn")) $("renameBtn").onclick = renameAlbum;
 if ($("membersBtn")) $("membersBtn").onclick = async () => { $("manageModal").classList.remove("show"); await openMembers(); };
@@ -1372,7 +1456,7 @@ if ($("fullDownload")) $("fullDownload").onclick = downloadCurrent;
 if ($("fullDelete")) $("fullDelete").onclick = deleteCurrentFull;
 
 // close when tap outside (other modals)
-for (const id of ["cameraModal", "manageModal", "membersModal", "shareModal"]) {
+for (const id of ["cameraModal", "manageModal", "membersModal", "shareModal", "memberActionsModal"]) {
   const el = $(id);
   if (!el) continue;
 
