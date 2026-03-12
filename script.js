@@ -78,6 +78,46 @@ function escapeHtml(s) {
   }[m]));
 }
 
+async function uploadAlbumCover(file) {
+  if (!file) return;
+
+  const fd = new FormData();
+  fd.append("album_code", currentAlbumCode);
+  fd.append("user_id", userId);
+  fd.append("file", file);
+
+  try {
+    const res = await fetch(`${API}/api/album/cover/upload`, {
+      method: "POST",
+      body: fd
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      toast(data?.detail || "Ошибка загрузки обложки");
+      return;
+    }
+
+    toast("Обложка обновлена");
+
+    // если DEV-режим, обновим локальные данные
+    if (DEV) {
+      const albums = devLoadAlbums();
+      const idx = albums.findIndex(a => a.code === currentAlbumCode);
+      if (idx !== -1) {
+        albums[idx].cover_url = data.cover_url;
+        devSaveAlbums(albums);
+      }
+    }
+
+    await loadAlbums();
+  } catch (e) {
+    console.error(e);
+    toast("Ошибка сети");
+  }
+}
+
 async function openCamera(){
 
   const modal = $("cameraModal")
@@ -1315,7 +1355,15 @@ if ($("deleteAlbumBtn")) $("deleteAlbumBtn").onclick = deleteAlbum;
 if ($("leaveBtn")) $("leaveBtn").onclick = leaveAlbum;
 if ($("leaveBtnInside")) $("leaveBtnInside").onclick = leaveAlbum;
 
-if ($("topMenuBtn")) $("topMenuBtn").onclick = () => openManage();
+if ($("changeCoverBtn")) {
+  $("changeCoverBtn").onclick = () => {
+    if (!(currentPerms.is_owner || currentPerms.is_moderator)) {
+      toast("Нет прав менять обложку");
+      return;
+    }
+    $("coverFileInput")?.click();
+  };
+}
 
 // fullscreen buttons
 if ($("fullClose")) $("fullClose").onclick = () => $("fullModal").classList.remove("show");
@@ -1379,26 +1427,32 @@ $("previewUpload").onclick = async () => {
 };
 
 // FIX: галерея → preview
-document.querySelectorAll('input[type="file"]').forEach(input => {
-
+document.querySelectorAll('input[type="file"]:not(#coverFileInput)').forEach(input => {
   input.addEventListener("change", (e) => {
-
     const file = e.target.files?.[0];
-    if(!file) return;
+    if (!file) return;
 
     previewBlob = file;
 
-    if($("previewImg")){
+    if ($("previewImg")) {
       $("previewImg").src = URL.createObjectURL(file);
     }
 
-    if($("camPreview")){
+    if ($("camPreview")) {
       $("camPreview").classList.remove("hidden");
     }
-
   });
-
 });
+
+if ($("coverFileInput")) {
+  $("coverFileInput").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    await uploadAlbumCover(file);
+    e.target.value = "";
+  });
+}
 
 $("fullDownload").onclick = async () => {
 

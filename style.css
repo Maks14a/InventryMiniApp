@@ -453,40 +453,30 @@ input[type="text"], input[type="number"] {
 .bg-white\/5 { background-color: rgba(255, 255, 255, 0.05); }
 
 .album-cover{
-width:48px;
-height:48px;
-border-radius:50%;
-overflow:hidden;
-display:flex;
-align-items:center;
-justify-content:center;
-background:rgba(255,255,255,0.08);
-font-weight:700;
-font-size:18px;
-color:white;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  font-weight: 700;
+  font-size: 18px;
+  color: white;
+  flex-shrink: 0;
 }
 
 .album-cover img{
-width:100%;
-height:100%;
-object-fit:cover;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.album-cover{
-width:48px;
-height:48px;
-border-radius:14px;
-background:rgba(255,255,255,0.1);
-display:flex;
-align-items:center;
-justify-content:center;
-overflow:hidden;
-}
-
-.album-cover img{
-width:100%;
-height:100%;
-object-fit:cover;
+.album-cover span{
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 /* FULLSCREEN VIEWER FIX */
