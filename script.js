@@ -40,7 +40,11 @@ let currentPerms = {
 
 let camStream = null;
 let cameraFacing = "environment";
+let previewRawBlob = null;
 let previewBlob = null;
+let currentCameraFilter = "original";
+let camPermissionGranted = false;
+let previewUploadLocked = false;
 
 // album photos cache for fullscreen swipe
 let albumPhotos = []; // [{url, uploaded_by}]
@@ -76,6 +80,142 @@ function escapeHtml(s) {
     "\"": "&quot;",
     "'": "&#039;",
   }[m]));
+}
+
+function getCameraCssFilter(filterName) {
+  if (filterName === "bw") return "grayscale(1)";
+  if (filterName === "green") return "brightness(0.96) contrast(1.02) sepia(0.18) hue-rotate(32deg) saturate(1.18)";
+  if (filterName === "red") return "brightness(0.97) contrast(1.03) sepia(0.22) hue-rotate(-18deg) saturate(1.2)";
+  if (filterName === "amber") return "brightness(1.01) contrast(1.02) sepia(0.3) saturate(1.14)";
+  if (filterName === "violet") return "brightness(0.99) contrast(1.02) sepia(0.12) hue-rotate(220deg) saturate(1.18)";
+  if (filterName === "cold") return "brightness(1.01) contrast(1.02) saturate(0.96) hue-rotate(170deg)";
+  return "none";
+}
+
+function setCameraFilterUI() {
+  document.querySelectorAll("[data-cam-filter]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.camFilter === currentCameraFilter);
+  });
+
+  const v = $("camVideo");
+  if (v) {
+    v.style.filter = getCameraCssFilter(currentCameraFilter);
+  }
+
+  const preview = $("previewImg");
+  if (preview) {
+    preview.style.filter = "none";
+  }
+}
+
+function applyFilterToCanvas(ctx, w, h, filterName) {
+  if (!filterName || filterName === "original") return;
+
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i];
+    const g = d[i + 1];
+    const b = d[i + 2];
+
+    if (filterName === "bw") {
+      const gray = Math.round(r * 0.299 + g * 0.587 + b * 0.114);
+      d[i] = gray;
+      d[i + 1] = gray;
+      d[i + 2] = gray;
+    }
+
+    if (filterName === "green") {
+      d[i] = Math.min(255, r * 0.55);
+      d[i + 1] = Math.min(255, g * 1.18 + 18);
+      d[i + 2] = Math.min(255, b * 0.72);
+    }
+
+    if (filterName === "red") {
+      d[i] = Math.min(255, r * 1.2 + 18);
+      d[i + 1] = Math.min(255, g * 0.55);
+      d[i + 2] = Math.min(255, b * 0.58);
+    }
+
+    if (filterName === "amber") {
+      d[i] = Math.min(255, r * 1.1 + 16);
+      d[i + 1] = Math.min(255, g * 0.92 + 8);
+      d[i + 2] = Math.min(255, b * 0.62);
+    }
+
+    if (filterName === "violet") {
+      d[i] = Math.min(255, r * 0.95 + 18);
+      d[i + 1] = Math.min(255, g * 0.72);
+      d[i + 2] = Math.min(255, b * 1.12 + 22);
+    }
+
+    if (filterName === "cold") {
+      d[i] = Math.min(255, r * 0.82);
+      d[i + 1] = Math.min(255, g * 0.95 + 6);
+      d[i + 2] = Math.min(255, b * 1.16 + 22);
+    }
+  }
+
+  ctx.putImageData(img, 0, 0);
+}
+
+async function renderFilteredPreviewFromBlob(sourceBlob, animateFromRect = null) {
+  if (!sourceBlob) return;
+
+  const img = new Image();
+  const url = URL.createObjectURL(sourceBlob);
+
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = url;
+  });
+
+  const canvas = $("camCanvas");
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  applyFilterToCanvas(ctx, canvas.width, canvas.height, currentCameraFilter);
+
+  const filteredBlob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+  URL.revokeObjectURL(url);
+
+  if (!filteredBlob) {
+    toast("Не удалось применить фильтр");
+    return;
+  }
+
+  previewBlob = filteredBlob;
+
+  const preview = $("previewImg");
+  const previewWrap = document.querySelector(".preview-media-wrap");
+  const previewRoot = $("camPreview");
+
+  if (preview) {
+    if (preview.dataset.objectUrl) {
+      URL.revokeObjectURL(preview.dataset.objectUrl);
+    }
+
+    const previewUrl = URL.createObjectURL(filteredBlob);
+    preview.dataset.objectUrl = previewUrl;
+    preview.style.filter = "none";
+    preview.src = previewUrl;
+  }
+
+  if (!previewRoot) return;
+
+  previewRoot.classList.remove("hidden");
+
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+
+  if (animateFromRect && previewWrap && preview) {
+    await animateCaptureToPreview(animateFromRect, previewWrap, preview.src);
+  }
 }
 
 async function uploadAlbumCover(file) {
@@ -116,29 +256,6 @@ async function uploadAlbumCover(file) {
     console.error(e);
     toast("Ошибка сети");
   }
-}
-
-async function openCamera(){
-
-  const modal = $("cameraModal")
-  modal.classList.add("show")
-
-  try{
-
-    camStream = await navigator.mediaDevices.getUserMedia({
-    video:{
-    facingMode: cameraFacing,
-    width:{ideal:1920},
-    height:{ideal:1080}
-  }
-  })
-
-  $("camVideo").srcObject = camStream
-
-  }catch(e){
-  toast("Камера не доступна")
-  }
-
 }
 
 function roleIcon(role){
@@ -370,7 +487,7 @@ window.openAlbum = async function openAlbum(code, name) {
       camBtn.style.pointerEvents = currentPerms.can_upload ? "auto" : "none";
     }
 
-    $("topMenuBtn").classList.toggle("hidden", !(currentPerms.is_owner || currentPerms.is_moderator));
+    $("topMenuBtn").classList.toggle("hidden", false);
 
     await loadPhotos();
     return;
@@ -397,7 +514,7 @@ window.openAlbum = async function openAlbum(code, name) {
       }
 
       // Настройки доступны владельцу или модератору
-      $("topMenuBtn").classList.toggle("hidden", !(currentPerms.is_owner || currentPerms.is_moderator));
+      $("topMenuBtn").classList.toggle("hidden", false);
     }
   } catch (e) {
     console.error(e);
@@ -782,6 +899,10 @@ async function uploadFile(file) {
 
 async function startCamera() {
   $("cameraModal").classList.add("show");
+  $("camPreview")?.classList.add("hidden");
+  $("camFiltersMenu")?.classList.remove("open");
+  $("camFiltersBtn")?.classList.remove("active");
+  $("camFiltersMenu")?.setAttribute("aria-hidden", "true");
 
   if (camStream) {
     camStream.getTracks().forEach((t) => t.stop());
@@ -795,13 +916,29 @@ async function startCamera() {
     v.setAttribute("playsinline", "");
     v.autoplay = true;
 
-    const constraintsA = { video: { facingMode: cameraFacing }, audio: false };
-    const constraintsB = { video: { facingMode: { ideal: cameraFacing } }, audio: false };
+    const constraints = {
+      audio: false,
+      video: {
+        facingMode: { ideal: cameraFacing },
+        width: { ideal: 2560, max: 3840 },
+        height: { ideal: 1440, max: 2160 },
+        aspectRatio: { ideal: 9 / 16 },
+        frameRate: { ideal: 30, max: 60 }
+      }
+    };
 
-    try {
-      camStream = await navigator.mediaDevices.getUserMedia(constraintsA);
-    } catch (_) {
-      camStream = await navigator.mediaDevices.getUserMedia(constraintsB);
+    camStream = await navigator.mediaDevices.getUserMedia(constraints);
+    camPermissionGranted = true;
+
+    const videoTrack = camStream.getVideoTracks?.()[0];
+    if (videoTrack?.applyConstraints) {
+      try {
+        await videoTrack.applyConstraints({
+          width: { ideal: 2560, max: 3840 },
+          height: { ideal: 1440, max: 2160 },
+          frameRate: { ideal: 30, max: 60 }
+        });
+      } catch (_) {}
     }
 
     v.srcObject = camStream;
@@ -809,22 +946,56 @@ async function startCamera() {
     await new Promise((resolve) => {
       const done = () => resolve();
       v.onloadedmetadata = done;
-      setTimeout(done, 500);
+      setTimeout(done, 700);
     });
 
-    v.style.transform = (cameraFacing === "user") ? "scaleX(-1)" : "none";
+    v.style.transform = cameraFacing === "user" ? "scaleX(-1)" : "none";
     await v.play();
+    setCameraFilterUI();
   } catch (e) {
     console.log(e);
-    toast("Камера недоступна — жми «Файл»");
+    toast("Камера недоступна");
   }
 }
 
 function stopCamera() {
   $("cameraModal").classList.remove("show");
+  $("camFiltersMenu")?.classList.remove("open");
+  $("camFiltersBtn")?.classList.remove("active");
+  $("camFiltersMenu")?.setAttribute("aria-hidden", "true");
+  $("camPreview")?.classList.add("hidden");
+
+  previewUploadLocked = false;
+
+  const uploadBtn = $("previewUpload");
+  if (uploadBtn) {
+    uploadBtn.disabled = false;
+    uploadBtn.style.opacity = "1";
+    uploadBtn.style.pointerEvents = "auto";
+    uploadBtn.textContent = "Загрузить";
+  }
+
+  previewBlob = null;
+  previewRawBlob = null;
+
   const v = $("camVideo");
-  try { v.pause(); } catch (_) {}
-  v.srcObject = null;
+  if (v) {
+    v.style.filter = "none";
+    v.style.transform = "none";
+    try { v.pause(); } catch (_) {}
+    v.srcObject = null;
+  }
+
+  const preview = $("previewImg");
+  if (preview) {
+    preview.style.filter = "none";
+    if (preview.dataset.objectUrl) {
+      URL.revokeObjectURL(preview.dataset.objectUrl);
+      preview.dataset.objectUrl = "";
+    }
+    preview.src = "";
+  }
+
   if (camStream) {
     camStream.getTracks().forEach((t) => t.stop());
     camStream = null;
@@ -832,18 +1003,19 @@ function stopCamera() {
 }
 
 async function flipCamera() {
-  cameraFacing = (cameraFacing === "environment") ? "user" : "environment";
+  cameraFacing = cameraFacing === "environment" ? "user" : "environment";
   await startCamera();
 }
 
 async function takeShot() {
   try {
-
     const v = $("camVideo");
     if (!v || !v.videoWidth) {
       toast("Нет видео — жми «Файл»");
       return;
     }
+
+    const fromRect = v.getBoundingClientRect();
 
     const canvas = $("camCanvas");
     canvas.width = v.videoWidth;
@@ -861,23 +1033,67 @@ async function takeShot() {
       ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
     }
 
-  const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
-  if (!blob) {
-    toast("Не удалось сделать фото");
-    return;
-  }
+    const rawBlob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    if (!rawBlob) {
+      toast("Не удалось сделать фото");
+      return;
+    }
 
-  previewBlob = blob;
+    previewRawBlob = rawBlob;
+    await renderFilteredPreviewFromBlob(rawBlob, fromRect);
 
-  const url = URL.createObjectURL(blob);
-  $("previewImg").src = url;
-
-  $("camPreview").classList.remove("hidden");
-
+    $("camFiltersMenu")?.classList.remove("open");
+    $("camFiltersBtn")?.classList.remove("active");
+    $("camFiltersMenu")?.setAttribute("aria-hidden", "true");
   } catch (e) {
     console.log(e);
     toast("Ошибка камеры");
   }
+}
+
+async function animateCaptureToPreview(fromRect, toElement, imageSrc) {
+  if (!fromRect || !toElement || !imageSrc) return;
+
+  const toRect = toElement.getBoundingClientRect();
+
+  const ghost = document.createElement("div");
+  ghost.className = "capture-fly-thumb";
+  ghost.style.left = `${fromRect.left}px`;
+  ghost.style.top = `${fromRect.top}px`;
+  ghost.style.width = `${fromRect.width}px`;
+  ghost.style.height = `${fromRect.height}px`;
+  ghost.style.opacity = "1";
+
+  ghost.innerHTML = `<img src="${imageSrc}" alt="">`;
+  document.body.appendChild(ghost);
+
+  toElement.style.opacity = "0";
+
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+
+  ghost.style.transition = [
+    "left .42s cubic-bezier(.2,.8,.2,1)",
+    "top .42s cubic-bezier(.2,.8,.2,1)",
+    "width .42s cubic-bezier(.2,.8,.2,1)",
+    "height .42s cubic-bezier(.2,.8,.2,1)",
+    "opacity .42s ease",
+    "transform .42s cubic-bezier(.2,.8,.2,1)"
+  ].join(", ");
+
+  ghost.style.left = `${toRect.left}px`;
+  ghost.style.top = `${toRect.top}px`;
+  ghost.style.width = `${toRect.width}px`;
+  ghost.style.height = `${toRect.height}px`;
+  ghost.style.transform = "scale(.98)";
+
+  await new Promise((resolve) => setTimeout(resolve, 430));
+
+  toElement.style.opacity = "1";
+  ghost.style.opacity = "0";
+
+  setTimeout(() => {
+    ghost.remove();
+  }, 180);
 }
 
 function cameraFallback() {
@@ -931,8 +1147,8 @@ async function createInviteLink(canUpload, canDelete, maxUses) {
   fd.append("user_id", userId);
   fd.append("can_upload", canUpload ? "true" : "false");
   fd.append("can_delete", canDelete ? "true" : "false");
-  fd.append("max_uses", String(maxUses));
-  fd.append("ttl_hours", "168");
+  fd.append("max_uses", "1");
+  fd.append("ttl_hours", "5");
 
   try {
     const r = await fetch(`${API}/api/invite/create`, { method: "POST", body: fd });
@@ -1455,6 +1671,46 @@ if ($("cameraClose")) $("cameraClose").onclick = stopCamera;
 if ($("camFallback")) $("camFallback").onclick = cameraFallback;
 if ($("camShot")) $("camShot").onclick = takeShot;
 if ($("camFlip")) $("camFlip").onclick = flipCamera;
+if ($("camFiltersBtn")) {
+  $("camFiltersBtn").onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const menu = $("camFiltersMenu");
+    if (!menu) return;
+
+    const isOpen = menu.classList.toggle("open");
+    $("camFiltersBtn").classList.toggle("active", isOpen);
+    menu.setAttribute("aria-hidden", isOpen ? "false" : "true");
+
+    setCameraFilterUI();
+  };
+}
+
+if ($("camFiltersClose")) {
+  $("camFiltersClose").onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    $("camFiltersMenu")?.classList.remove("open");
+    $("camFiltersBtn")?.classList.remove("active");
+    $("camFiltersMenu")?.setAttribute("aria-hidden", "true");
+  };
+}
+
+document.querySelectorAll("[data-cam-filter]").forEach((btn) => {
+  btn.onclick = async () => {
+    currentCameraFilter = btn.dataset.camFilter;
+    setCameraFilterUI();
+
+    if (!$("camPreview").classList.contains("hidden") && previewRawBlob) {
+      await renderFilteredPreviewFromBlob(previewRawBlob);
+    }
+
+    $("camFiltersMenu")?.classList.remove("open");
+    $("camFiltersBtn")?.classList.remove("active");
+    $("camFiltersMenu")?.setAttribute("aria-hidden", "true");
+  };
+});
 
 if ($("manageClose")) $("manageClose").onclick = () => $("manageModal").classList.remove("show");
 if ($("membersClose")) $("membersClose").onclick = () => $("membersModal").classList.remove("show");
@@ -1489,7 +1745,13 @@ for (const id of ["cameraModal", "manageModal", "membersModal", "shareModal", "m
   if (!el) continue;
 
   el.onclick = (e) => {
+    if (id === "cameraModal") {
+      if (e.target === $("camFiltersMenu") || $("camFiltersMenu")?.contains(e.target)) return;
+      if (e.target === $("camFiltersBtn") || $("camFiltersBtn")?.contains(e.target)) return;
+    }
+
     if (e.target !== el) return;
+
     if (id === "cameraModal") stopCamera();
     else el.classList.remove("show");
   };
@@ -1518,24 +1780,79 @@ openCamera()
 })
 
 $("previewCancel").onclick = () => {
+  previewUploadLocked = false;
+
+  const uploadBtn = $("previewUpload");
+  if (uploadBtn) {
+    uploadBtn.disabled = false;
+    uploadBtn.style.opacity = "1";
+    uploadBtn.style.pointerEvents = "auto";
+    uploadBtn.textContent = "Загрузить";
+  }
+
+  const preview = $("previewImg");
+  if (preview?.dataset.objectUrl) {
+    URL.revokeObjectURL(preview.dataset.objectUrl);
+    preview.dataset.objectUrl = "";
+  }
+
+  if (preview) {
+    preview.src = "";
+    preview.style.opacity = "1";
+  }
+
   previewBlob = null;
+  previewRawBlob = null;
   $("camPreview").classList.add("hidden");
 };
 
 $("previewUpload").onclick = async () => {
+  if (previewUploadLocked) return;
 
   if (!previewBlob) {
     toast("Нет фото");
     return;
   }
 
-  await uploadFile(
-    new File([previewBlob], "camera.jpg", { type: "image/jpeg" })
-  );
+  previewUploadLocked = true;
 
-  previewBlob = null;
+  const uploadBtn = $("previewUpload");
+  if (uploadBtn) {
+    uploadBtn.disabled = true;
+    uploadBtn.style.opacity = "0.6";
+    uploadBtn.style.pointerEvents = "none";
+    uploadBtn.textContent = "Загрузка...";
+  }
 
-  $("camPreview").classList.add("hidden");
+  try {
+    await uploadFile(
+      new File([previewBlob], "camera.jpg", { type: "image/jpeg" })
+    );
+
+    const preview = $("previewImg");
+    if (preview?.dataset.objectUrl) {
+      URL.revokeObjectURL(preview.dataset.objectUrl);
+      preview.dataset.objectUrl = "";
+    }
+
+    if (preview) {
+      preview.src = "";
+      preview.style.opacity = "1";
+    }
+
+    previewBlob = null;
+    previewRawBlob = null;
+    $("camPreview").classList.add("hidden");
+  } finally {
+    previewUploadLocked = false;
+
+    if (uploadBtn) {
+      uploadBtn.disabled = false;
+      uploadBtn.style.opacity = "1";
+      uploadBtn.style.pointerEvents = "auto";
+      uploadBtn.textContent = "Загрузить";
+    }
+  }
 };
 
 // FIX: галерея → preview
@@ -1550,7 +1867,28 @@ document.querySelectorAll('input[type="file"]:not(#coverFileInput)').forEach(inp
       $("previewImg").src = URL.createObjectURL(file);
     }
 
+    previewUploadLocked = false;
+
+    const uploadBtn = $("previewUpload");
+    if (uploadBtn) {
+      uploadBtn.disabled = false;
+      uploadBtn.style.opacity = "1";
+      uploadBtn.style.pointerEvents = "auto";
+      uploadBtn.textContent = "Загрузить";
+    }
+
     if ($("camPreview")) {
+
+      previewUploadLocked = false;
+
+      const uploadBtn = $("previewUpload");
+      if (uploadBtn) {
+        uploadBtn.disabled = false;
+        uploadBtn.style.opacity = "1";
+        uploadBtn.style.pointerEvents = "auto";
+        uploadBtn.textContent = "Загрузить";
+      }
+
       $("camPreview").classList.remove("hidden");
     }
   });

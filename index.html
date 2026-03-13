@@ -105,9 +105,9 @@
         <div id="fullTrack"></div>
       </div>
       
-      <div class="absolute bottom-4 w-full text-center text-xs opacity-50 pointer-events-none">
+      <!-- <div class="absolute bottom-4 w-full text-center text-xs opacity-50 pointer-events-none">
         Свайп — листать / Двойной тап — зум
-      </div>
+      </div> -->
     </div>
   </div>
 
@@ -134,14 +134,35 @@
 
       <video id="camVideo" playsinline autoplay muted></video>
       <canvas id="camCanvas"></canvas>
-      <div id="camPreview" class="hidden">
-        <img id="previewImg">
 
-        <div class="preview-actions">
-          <button id="previewUpload">Загрузить</button>
-          <button id="previewCancel">Удалить</button>
+        <div id="camPreview" class="hidden">
+          <div class="preview-card">
+            <div class="preview-head">
+              <span class="preview-title-with-icon">
+                <span class="preview-title-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 3H5a2 2 0 0 0-2 2v4"></path>
+                    <path d="M15 3h4a2 2 0 0 1 2 2v4"></path>
+                    <path d="M21 15v4a2 2 0 0 1-2 2h-4"></path>
+                    <path d="M3 15v4a2 2 0 0 0 2 2h4"></path>
+                    <rect x="7" y="7" width="10" height="10" rx="2"></rect>
+                  </svg>
+                </span>
+                <span>Превью</span>
+              </span>
+            </div>
+
+            <div class="preview-media-wrap">
+              <img id="previewImg">
+            </div>
+
+            <div class="preview-actions">
+              <button id="previewUpload">Загрузить</button>
+              <button id="previewCancel">Удалить</button>
+            </div>
+          </div>
         </div>
-      </div>
+
         <div class="cam-overlay-bottom">
           <div id="camLimitBadge" class="cam-limit-badge">Лимит: —</div>
 
@@ -151,9 +172,38 @@
               <path d="M4 7h4l2-2h4l2 2h4v12H4z"></path>
             </svg>
           </button>
+
+          <button id="camFiltersBtn" class="btn cam-side-btn" aria-label="Фильтры">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="3 5 21 5 14 13 14 19 10 21 10 13 3 5"></polygon>
+            </svg>
+          </button>
         </div>
     </div>
   </div>
+
+    <div id="camFiltersMenu" class="cam-filters-menu" aria-hidden="true">
+      <div class="cam-filters-head">
+        <span class="cam-filters-title">Фильтры</span>
+
+        <button id="camFiltersClose" class="btn cam-filters-close" aria-label="Закрыть фильтры">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round">
+            <path d="M6 6L18 18"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="cam-filters-list">
+        <button class="btn cam-filter-option active" data-cam-filter="original">Оригинал</button>
+        <button class="btn cam-filter-option" data-cam-filter="bw">Ч/Б</button>
+        <button class="btn cam-filter-option" data-cam-filter="green">Зелёный</button>
+        <button class="btn cam-filter-option" data-cam-filter="red">Красный</button>
+        <button class="btn cam-filter-option" data-cam-filter="amber">Янтарь</button>
+        <button class="btn cam-filter-option" data-cam-filter="violet">Фиолет</button>
+        <button class="btn cam-filter-option" data-cam-filter="cold">Холодный</button>
+      </div>
+    </div>
 
   <div id="shareModal" class="modal-overlay">
     <div class="modal-card glass">
