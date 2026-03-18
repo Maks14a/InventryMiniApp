@@ -12,8 +12,7 @@ const tg = window.Telegram?.WebApp || {
 try { tg.expand?.(); } catch (_) {}
 try { tg.ready?.(); } catch (_) {}
 
-// const API = "https://eventry-api-vozmak.amvera.io";
-const API = "https://api-horobi3906.amvera.io";  // временно
+const API = "https://eventry-api-vozmak.amvera.io"; 
 
 // ID пользователя из Telegram. Для тестов в браузере используем ID гостя (112)
 const userId = Number(tg.initDataUnsafe?.user?.id) || 112;
