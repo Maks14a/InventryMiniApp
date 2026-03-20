@@ -1,5 +1,5 @@
 // Iventry Mini App — script.js (clean, with DEV mode)
-const BOT_USERNAME = ((window.__BOT_USERNAME__ || "Iventry_Bot") + "").trim().replace(/^@+/, "") || "Iventry_Bot";
+const BOT_USERNAME = ((window.__BOT_USERNAME__ || "Ev3ntry_Bot") + "").trim().replace(/^@+/, "") || "Ev3ntry_Bot";
 const BOT_LINK_BASE = `https://t.me/${BOT_USERNAME}`;
 // DEV mode is enabled automatically when opened outside Telegram (userId == 112) or with ?dev=1
 
