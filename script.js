@@ -1,4 +1,6 @@
 // Iventry Mini App — script.js (clean, with DEV mode)
+const BOT_USERNAME = ((window.__BOT_USERNAME__ || "Iventry_Bot") + "").trim().replace(/^@+/, "") || "Iventry_Bot";
+const BOT_LINK_BASE = `https://t.me/${BOT_USERNAME}`;
 // DEV mode is enabled automatically when opened outside Telegram (userId == 112) or with ?dev=1
 
 const tg = window.Telegram?.WebApp || {
@@ -781,7 +783,7 @@ function downloadCurrent(){
   }
 
   tg.openTelegramLink(
-  `https://t.me/Iventry_Bot?start=dl_${encodeURIComponent(photo.url)}`
+  `${BOT_LINK_BASE}?start=dl_${encodeURIComponent(photo.url)}`
   )
 }
 
@@ -1138,7 +1140,7 @@ async function createInviteLink(canUpload, canDelete, maxUses) {
   // DEV: фейковая ссылка (чтобы UI жил без API)
   if (DEV) {
     const flags = (canUpload ? "1" : "0") + (canDelete ? "1" : "0");
-    return `https://t.me/Iventry_Bot?start=join_${currentAlbumCode}_${flags}_${maxUses}`;
+    return `${BOT_LINK_BASE}?start=join_${currentAlbumCode}_${flags}_${maxUses}`;
   }
 
   const fd = new FormData();
@@ -1185,7 +1187,7 @@ function sharePersonToBot() {
     return;
   }
   const rights = getShareRights();
-  const deep = `https://t.me/Iventry_Bot?start=pick_${currentAlbumCode}_${rights.flags}`;
+  const deep = `${BOT_LINK_BASE}?start=pick_${currentAlbumCode}_${rights.flags}`;
   tg.openTelegramLink?.(deep);
   toast("Открыл бота — нажми «Выбрать человека»");
 }
