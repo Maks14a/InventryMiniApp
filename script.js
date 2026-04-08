@@ -85,6 +85,8 @@ function escapeHtml(s) {
 
 function getCameraCssFilter(filterName) {
   if (filterName === "bw") return "grayscale(1)";
+  if (filterName === "film") return "sepia(0.38) saturate(0.78) contrast(0.9) brightness(1.05) hue-rotate(-12deg)";
+  if (filterName === "film_bw") return "grayscale(1) contrast(1.22) brightness(0.94) sepia(0.12)";
   if (filterName === "green") return "brightness(0.96) contrast(1.02) sepia(0.18) hue-rotate(32deg) saturate(1.18)";
   if (filterName === "red") return "brightness(0.97) contrast(1.03) sepia(0.22) hue-rotate(-18deg) saturate(1.2)";
   if (filterName === "amber") return "brightness(1.01) contrast(1.02) sepia(0.3) saturate(1.14)";
@@ -125,6 +127,38 @@ function applyFilterToCanvas(ctx, w, h, filterName) {
       d[i] = gray;
       d[i + 1] = gray;
       d[i + 2] = gray;
+    }
+
+    if (filterName === "film") {
+      let nr = r * 1.08 + 14;
+      let ng = g * 0.98 + 8;
+      let nb = b * 0.72 - 6;
+
+      const avg = (nr + ng + nb) / 3;
+
+      nr = nr * 0.86 + avg * 0.14;
+      ng = ng * 0.88 + avg * 0.12;
+      nb = nb * 0.82 + avg * 0.18;
+
+      nr += 6;
+      ng += 2;
+      nb -= 8;
+
+      d[i] = Math.max(0, Math.min(255, nr));
+      d[i + 1] = Math.max(0, Math.min(255, ng));
+      d[i + 2] = Math.max(0, Math.min(255, nb));
+    }
+
+    if (filterName === "film_bw") {
+      const gray = Math.round(r * 0.28 + g * 0.6 + b * 0.12);
+
+      let adjusted = ((gray - 128) * 1.28) + 122;
+
+      adjusted = adjusted * 0.94 + 8;
+
+      d[i] = Math.max(0, Math.min(255, adjusted + 4));
+      d[i + 1] = Math.max(0, Math.min(255, adjusted + 1));
+      d[i + 2] = Math.max(0, Math.min(255, adjusted - 3));
     }
 
     if (filterName === "green") {
